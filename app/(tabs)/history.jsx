@@ -1,18 +1,28 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useContext, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ThemeContext } from './_layout';
+import { TAB_RENKLERI, ThemeContext } from './_layout';
+
+const RENK = TAB_RENKLERI.gecmis;
+
+const DETAY_SATIRLARI = [
+  { adetKey: 'kurulumAdet', paraKey: 'kurulumPara', label: 'Kurulum', icon: 'construct' },
+  { adetKey: 'haftaIciAdet', paraKey: 'haftaIciPara', label: 'H.İçi Nöbet', icon: 'briefcase' },
+  { adetKey: 'haftaSonuAdet', paraKey: 'haftaSonuPara', label: 'H.Sonu Nöbet', icon: 'calendar' },
+  { adetKey: 'aracAdet', paraKey: 'aracPara', label: 'Araç Nöbeti', icon: 'car-sport' },
+];
 
 export default function HistoryScreen() {
   const [gecmis, setGecmis] = useState([]);
   const { isDark } = useContext(ThemeContext);
 
-  const bg = isDark ? '#121212' : '#f5f5f5';
-  const text = isDark ? '#ffffff' : '#333333';
+  const bg = isDark ? '#121212' : '#f2f4f8';
+  const text = isDark ? '#ffffff' : '#1f2430';
   const cardBg = isDark ? '#1e1e1e' : '#ffffff';
-  const borderColor = isDark ? '#444444' : '#dddddd';
-  const mutedText = isDark ? '#aaaaaa' : '#666666';
+  const borderColor = isDark ? '#3a3a3a' : '#e6e8ee';
+  const mutedText = isDark ? '#9aa0aa' : '#8a8f9a';
 
   useFocusEffect(useCallback(() => {
     AsyncStorage.getItem('maasKayitlari').then(res => {
@@ -21,32 +31,43 @@ export default function HistoryScreen() {
   }, []));
 
   return (
-    <View style={{ flex: 1, backgroundColor: bg, paddingTop: 10 }}>
-      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', color: text, textAlign: 'center', marginBottom: 20 }}>Tüm Geçmiş Aylar</Text>
-        
-        {gecmis.length === 0 && <Text style={{ color: mutedText, textAlign: 'center', fontStyle: 'italic' }}>Henüz geçmişte kaydedilmiş bir ay yok.</Text>}
+    <View style={{ flex: 1, backgroundColor: bg, paddingTop: 10, paddingHorizontal: 16 }}>
+      <View style={[styles.hero, { backgroundColor: RENK }]}>
+        <View style={styles.heroIconKutu}>
+          <Ionicons name="time" size={22} color="#fff" />
+        </View>
+        <Text style={styles.heroBaslik}>Tüm Geçmiş Aylar</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+        {gecmis.length === 0 && (
+          <View style={{ alignItems: 'center', marginTop: 30 }}>
+            <Ionicons name="archive-outline" size={36} color={mutedText} />
+            <Text style={{ color: mutedText, textAlign: 'center', fontStyle: 'italic', marginTop: 10 }}>Henüz geçmişte kaydedilmiş bir ay yok.</Text>
+          </View>
+        )}
 
         {gecmis.map((item) => (
           <View key={item.id} style={[styles.kart, { backgroundColor: cardBg, borderColor: borderColor }]}>
             <View style={styles.baslikSatiri}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: text }}>{item.ay}</Text>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#28a745' }}>{item.toplam} TL</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: text }}>{item.ay}</Text>
+              <View style={{ backgroundColor: RENK, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{item.toplam} TL</Text>
+              </View>
             </View>
-            
+
             <View style={styles.detayKutusu}>
-              <Text style={{ color: text, marginBottom: 6, fontSize: 14 }}>
-                <Text style={{fontWeight: 'bold'}}>Kurulum:</Text> {item.kurulumAdet || 0} İşlem <Text style={{color: '#28a745'}}>(+ {item.kurulumPara ? item.kurulumPara.toLocaleString('tr-TR') : 0} TL)</Text>
-              </Text>
-              <Text style={{ color: text, marginBottom: 6, fontSize: 14 }}>
-                <Text style={{fontWeight: 'bold'}}>H.İçi Nöbet:</Text> {item.haftaIciAdet || 0} İşlem <Text style={{color: '#28a745'}}>(+ {item.haftaIciPara ? item.haftaIciPara.toLocaleString('tr-TR') : 0} TL)</Text>
-              </Text>
-              <Text style={{ color: text, marginBottom: 6, fontSize: 14 }}>
-                <Text style={{fontWeight: 'bold'}}>H.Sonu Nöbet:</Text> {item.haftaSonuAdet || 0} İşlem <Text style={{color: '#28a745'}}>(+ {item.haftaSonuPara ? item.haftaSonuPara.toLocaleString('tr-TR') : 0} TL)</Text>
-              </Text>
-              <Text style={{ color: text, fontSize: 14 }}>
-                <Text style={{fontWeight: 'bold'}}>Araç Nöbeti:</Text> {item.aracAdet || 0} İşlem <Text style={{color: '#28a745'}}>(+ {item.aracPara ? item.aracPara.toLocaleString('tr-TR') : 0} TL)</Text>
-              </Text>
+              {DETAY_SATIRLARI.map(({ adetKey, paraKey, label, icon }) => (
+                <View key={label} style={styles.detaySatir}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Ionicons name={icon} size={14} color={RENK} style={{ marginRight: 7 }} />
+                    <Text style={{ color: mutedText, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+                  </View>
+                  <Text style={{ color: text, fontSize: 13, fontWeight: '700' }}>
+                    {item[adetKey] || 0} İşlem <Text style={{ color: RENK }}>(+{item[paraKey] ? item[paraKey].toLocaleString('tr-TR') : 0} TL)</Text>
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
         ))}
@@ -56,7 +77,34 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  kart: { borderWidth: 1, borderRadius: 10, padding: 15, marginBottom: 15 },
-  baslikSatiri: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#dddddd', paddingBottom: 10, marginBottom: 12 },
-  detayKutusu: { paddingLeft: 5 }
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroIconKutu: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  heroBaslik: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  kart: {
+    borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
+  },
+  baslikSatiri: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.25)', paddingBottom: 10, marginBottom: 10 },
+  detayKutusu: { gap: 8 },
+  detaySatir: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
