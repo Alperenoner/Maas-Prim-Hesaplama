@@ -30,6 +30,14 @@ export default function HistoryScreen() {
     });
   }, []));
 
+  const suAnkiYil = new Date().getFullYear().toString();
+  const yillikToplam = gecmis
+    .filter(item => item.ay && item.ay.endsWith(suAnkiYil))
+    .reduce((toplam, item) => toplam + (item.hamToplam || 0), 0);
+
+  const grafikVerisi = gecmis.slice(0, 6).slice().reverse();
+  const maxDeger = Math.max(1, ...grafikVerisi.map(item => item.hamToplam || 0));
+
   return (
     <View style={{ flex: 1, backgroundColor: bg, paddingTop: 10, paddingHorizontal: 16 }}>
       <View style={[styles.hero, { backgroundColor: RENK }]}>
@@ -40,6 +48,30 @@ export default function HistoryScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+        {gecmis.length > 0 && (
+          <View style={[styles.ozetKart, { backgroundColor: cardBg, borderColor: borderColor }]}>
+            <View style={styles.ozetUst}>
+              <Text style={[styles.ozetBaslik, { color: mutedText }]}>{suAnkiYil} Yılı Toplam Kazanç</Text>
+              <Text style={[styles.ozetDeger, { color: RENK }]}>{yillikToplam.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL</Text>
+            </View>
+
+            {grafikVerisi.length > 1 && (
+              <View style={styles.grafikAlani}>
+                {grafikVerisi.map((item, idx) => (
+                  <View key={item.id || idx} style={styles.barKolon}>
+                    <View style={styles.barGovdeArka}>
+                      <View style={[styles.barGovde, { height: `${Math.max(6, ((item.hamToplam || 0) / maxDeger) * 100)}%`, backgroundColor: RENK }]} />
+                    </View>
+                    <Text style={[styles.barEtiket, { color: mutedText }]} numberOfLines={1}>
+                      {item.ay ? item.ay.split(' ')[0].slice(0, 3) : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {gecmis.length === 0 && (
           <View style={{ alignItems: 'center', marginTop: 30 }}>
             <Ionicons name="archive-outline" size={36} color={mutedText} />
@@ -107,4 +139,16 @@ const styles = StyleSheet.create({
   baslikSatiri: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.25)', paddingBottom: 10, marginBottom: 10 },
   detayKutusu: { gap: 8 },
   detaySatir: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ozetKart: {
+    borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
+  },
+  ozetUst: { alignItems: 'center', marginBottom: 14 },
+  ozetBaslik: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  ozetDeger: { fontSize: 26, fontWeight: '800', marginTop: 4 },
+  grafikAlani: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', height: 110, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)', paddingTop: 10 },
+  barKolon: { alignItems: 'center', flex: 1 },
+  barGovdeArka: { height: 80, width: 18, justifyContent: 'flex-end' },
+  barGovde: { width: '100%', borderRadius: 6, minHeight: 6 },
+  barEtiket: { fontSize: 10, fontWeight: '600', marginTop: 6 },
 });

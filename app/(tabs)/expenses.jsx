@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useContext, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { yedegeKaydet } from '../../yedekleme';
 import { TAB_RENKLERI, ThemeContext } from './_layout';
 
 const RENK = TAB_RENKLERI.harcamalar;
@@ -15,6 +16,7 @@ export default function ExpensesScreen() {
   const [saat, setSaat] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [harcamalar, setHarcamalar] = useState([]);
+  const [kullaniciEpostasi, setKullaniciEpostasi] = useState(null);
 
   const { isDark } = useContext(ThemeContext);
 
@@ -34,6 +36,8 @@ export default function ExpensesScreen() {
     try {
       const kayitlar = await AsyncStorage.getItem('harcamaKayitlari');
       if (kayitlar !== null) setHarcamalar(JSON.parse(kayitlar));
+      const profil = await AsyncStorage.getItem('kullaniciProfili');
+      if (profil) setKullaniciEpostasi(JSON.parse(profil).eposta || null);
     } catch (e) { console.log(e); }
   };
 
@@ -52,12 +56,14 @@ export default function ExpensesScreen() {
     const yeniListe = [yeniKayıt, ...harcamalar];
     setHarcamalar(yeniListe);
     await AsyncStorage.setItem('harcamaKayitlari', JSON.stringify(yeniListe));
+    yedegeKaydet(kullaniciEpostasi, { harcamaKayitlari: yeniListe });
     setIsim(''); setTutar(''); setGun(''); setSaat(new Date());
   };
 
   const harcamaSil = async (id) => {
     const yeniListe = harcamalar.filter(item => item.id !== id);
     setHarcamalar(yeniListe);
+    yedegeKaydet(kullaniciEpostasi, { harcamaKayitlari: yeniListe });
     await AsyncStorage.setItem('harcamaKayitlari', JSON.stringify(yeniListe));
   };
 

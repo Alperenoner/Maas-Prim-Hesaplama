@@ -26,8 +26,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setVisibilityAsync('hidden');
-      NavigationBar.setBehaviorAsync('overlay-swipe');
+      const gizle = async () => {
+        try {
+          await NavigationBar.setVisibilityAsync('hidden');
+          await NavigationBar.setBehaviorAsync('overlay-swipe');
+        } catch (error) {
+          console.log('Navigasyon çubuğu gizlenemedi (eski APK sürümü olabilir):', error);
+        }
+      };
+      gizle();
     }
   }, []);
 

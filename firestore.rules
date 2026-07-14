@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /geribildirimler/{docId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null
+        && request.auth.token.email == 'alperenoner8440@gmail.com';
+    }
+    match /kullanicilar/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null
+        && request.auth.token.email == 'alperenoner8440@gmail.com';
+    }
+    match /yedekler/{docId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -3,8 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { db } from '../firebaseConfig';
+import { yedektenGeriYukle } from '../yedekleme';
 
 const RENK = '#4F46E5';
 
@@ -16,6 +17,7 @@ export default function KayitScreen() {
   const [soyisim, setSoyisim] = useState('');
   const [eposta, setEposta] = useState('');
   const [hata, setHata] = useState('');
+  const [yukleniyor, setYukleniyor] = useState(false);
 
   const bg = isDark ? '#121212' : '#f2f4f8';
   const text = isDark ? '#ffffff' : '#1f2430';
@@ -31,6 +33,7 @@ export default function KayitScreen() {
     if (!epostaGecerliMi) { setHata('Lütfen geçerli bir e-posta adresi girin.'); return; }
 
     setHata('');
+    setYukleniyor(true);
     const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim() };
     await AsyncStorage.setItem('kullaniciProfili', JSON.stringify(profil));
 
@@ -44,6 +47,13 @@ export default function KayitScreen() {
       console.log('Kullanıcı kaydı Firestore hatası:', e);
     }
 
+    const yedek = await yedektenGeriYukle(profil.eposta);
+    if (yedek) {
+      if (yedek.maasKayitlari) await AsyncStorage.setItem('maasKayitlari', JSON.stringify(yedek.maasKayitlari));
+      if (yedek.harcamaKayitlari) await AsyncStorage.setItem('harcamaKayitlari', JSON.stringify(yedek.harcamaKayitlari));
+    }
+
+    setYukleniyor(false);
     router.replace('/');
   };
 
@@ -89,9 +99,13 @@ export default function KayitScreen() {
 
         {hata ? <Text style={styles.hataYazisi}>{hata}</Text> : null}
 
-        <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }]} onPress={kaydet}>
-          <Ionicons name="arrow-forward-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.butonYazi}>Devam Et</Text>
+        <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }]} onPress={kaydet} disabled={yukleniyor}>
+          {yukleniyor ? (
+            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+          ) : (
+            <Ionicons name="arrow-forward-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+          )}
+          <Text style={styles.butonYazi}>{yukleniyor ? 'Kontrol ediliyor...' : 'Devam Et'}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

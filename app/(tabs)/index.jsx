@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useContext, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { yedegeKaydet } from '../../yedekleme';
 import { TAB_RENKLERI, ThemeContext } from './_layout';
 
 const RENK = TAB_RENKLERI.maas;
@@ -16,6 +17,7 @@ export default function App() {
   const [arac, setArac] = useState('');
   const [aylikKayitlar, setAylikKayitlar] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [kullaniciEpostasi, setKullaniciEpostasi] = useState(null);
 
   const { isDark } = useContext(ThemeContext);
 
@@ -36,6 +38,8 @@ export default function App() {
       const saklananMaas = await AsyncStorage.getItem('saklananMaas');
       const saklananHatirla = await AsyncStorage.getItem('saklananHatirla');
       if (saklananHatirla === 'true' && saklananMaas) { setMaas(saklananMaas); setHatirla(true); }
+      const profil = await AsyncStorage.getItem('kullaniciProfili');
+      if (profil) setKullaniciEpostasi(JSON.parse(profil).eposta || null);
     } catch (e) { console.log(e); }
   };
 
@@ -99,6 +103,7 @@ export default function App() {
 
     setAylikKayitlar(guncelListe);
     await AsyncStorage.setItem('maasKayitlari', JSON.stringify(guncelListe));
+    yedegeKaydet(kullaniciEpostasi, { maasKayitlari: guncelListe });
     setKurulum(''); setHaftaIci(''); setHaftaSonu(''); setArac('');
   };
 
@@ -106,6 +111,7 @@ export default function App() {
     const kalanlar = aylikKayitlar.filter(item => item.id !== id);
     setAylikKayitlar(kalanlar);
     await AsyncStorage.setItem('maasKayitlari', JSON.stringify(kalanlar));
+    yedegeKaydet(kullaniciEpostasi, { maasKayitlari: kalanlar });
   };
 
   const kartTiklandi = (item) => {
