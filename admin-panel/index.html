@@ -91,14 +91,15 @@
   .ustBar h1 { font-size: 18px; margin: 0; }
   .cikisButon { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 14px; font-size: 13px; }
 
-  .sekmeler { display: flex; gap: 10px; margin-bottom: 18px; }
+  .sekmeler { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
   .sekmeButon {
     flex: 1;
+    min-width: 150px;
     padding: 12px;
     background: var(--card);
     border: 1px solid var(--border);
     color: var(--muted);
-    font-size: 14px;
+    font-size: 13px;
   }
   .sekmeButon.aktif { background: var(--indigo); color: #fff; border-color: var(--indigo); }
 
@@ -134,6 +135,10 @@
   .verilenYanit { background: #eef0fc; border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 13px; }
   .verilenYanit b { color: var(--indigo); }
   .bosDurum { text-align: center; color: var(--muted); padding: 40px 0; font-style: italic; }
+  .kartAltSatir { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+  .silButon { background: #fdecec; color: var(--red); padding: 8px 14px; font-size: 12px; }
+  .geriYukleButon { background: #eaf7ee; color: var(--green); padding: 8px 14px; font-size: 12px; }
+  .silinmisRozet { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; color: #fff; background: var(--muted); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -160,12 +165,16 @@
   </div>
 
   <div class="sekmeler">
-    <button class="sekmeButon aktif" id="sekmeGeriBildirim">Geri Bildirimler</button>
-    <button class="sekmeButon" id="sekmeKullanicilar">Kayıtlı Kullanıcılar</button>
+    <button class="sekmeButon aktif" data-sekme="geriBildirim">Geri Bildirimler</button>
+    <button class="sekmeButon" data-sekme="kullanicilar">Kayıtlı Kullanıcılar</button>
+    <button class="sekmeButon" data-sekme="silinenGeriBildirim">Silinen Geri Bildirimler</button>
+    <button class="sekmeButon" data-sekme="silinenKullanicilar">Silinen Kullanıcılar</button>
   </div>
 
   <div id="geriBildirimListesi"></div>
   <div id="kullaniciListesi" class="hidden"></div>
+  <div id="silinenGeriBildirimListesi" class="hidden"></div>
+  <div id="silinenKullaniciListesi" class="hidden"></div>
 </div>
 
 <script type="module">
@@ -174,7 +183,7 @@
     getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
   import {
-    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp
+    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteField, serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
   const firebaseConfig = {
@@ -200,10 +209,17 @@
   const girisButonu = document.getElementById('girisButonu');
   const girisHata = document.getElementById('girisHata');
   const cikisButonu = document.getElementById('cikisButonu');
-  const sekmeGeriBildirim = document.getElementById('sekmeGeriBildirim');
-  const sekmeKullanicilar = document.getElementById('sekmeKullanicilar');
-  const geriBildirimListesi = document.getElementById('geriBildirimListesi');
-  const kullaniciListesi = document.getElementById('kullaniciListesi');
+  const sekmeButonlari = document.querySelectorAll('.sekmeButon');
+  const listeKutulari = {
+    geriBildirim: document.getElementById('geriBildirimListesi'),
+    kullanicilar: document.getElementById('kullaniciListesi'),
+    silinenGeriBildirim: document.getElementById('silinenGeriBildirimListesi'),
+    silinenKullanicilar: document.getElementById('silinenKullaniciListesi'),
+  };
+  const geriBildirimListesi = listeKutulari.geriBildirim;
+  const kullaniciListesi = listeKutulari.kullanicilar;
+  const silinenGeriBildirimListesi = listeKutulari.silinenGeriBildirim;
+  const silinenKullaniciListesi = listeKutulari.silinenKullanicilar;
 
   girisButonu.addEventListener('click', async () => {
     const eposta = document.getElementById('girisEposta').value.trim();
@@ -219,17 +235,14 @@
 
   cikisButonu.addEventListener('click', () => signOut(auth));
 
-  sekmeGeriBildirim.addEventListener('click', () => {
-    sekmeGeriBildirim.classList.add('aktif');
-    sekmeKullanicilar.classList.remove('aktif');
-    geriBildirimListesi.classList.remove('hidden');
-    kullaniciListesi.classList.add('hidden');
-  });
-  sekmeKullanicilar.addEventListener('click', () => {
-    sekmeKullanicilar.classList.add('aktif');
-    sekmeGeriBildirim.classList.remove('aktif');
-    kullaniciListesi.classList.remove('hidden');
-    geriBildirimListesi.classList.add('hidden');
+  sekmeButonlari.forEach(buton => {
+    buton.addEventListener('click', () => {
+      sekmeButonlari.forEach(b => b.classList.remove('aktif'));
+      buton.classList.add('aktif');
+      Object.entries(listeKutulari).forEach(([anahtar, kutu]) => {
+        kutu.classList.toggle('hidden', anahtar !== buton.dataset.sekme);
+      });
+    });
   });
 
   function tarihFormatla(ts) {
@@ -237,7 +250,13 @@
     return ts.toDate().toLocaleString('tr-TR');
   }
 
-  function feedbackKartOlustur(id, veri) {
+  async function silDurumunuGuncelle(koleksiyon, id, silinsinMi) {
+    await updateDoc(doc(db, koleksiyon, id), silinsinMi
+      ? { silindi: true, silinmeTarihi: serverTimestamp() }
+      : { silindi: false, silinmeTarihi: deleteField() });
+  }
+
+  function feedbackKartOlustur(id, veri, silinmisMi) {
     const kart = document.createElement('div');
     kart.className = 'kart';
 
@@ -250,20 +269,24 @@
           <div class="kartIsim">${isimSatiri}</div>
           <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
         </div>
-        <span class="rozet ${yanitlandiMi ? 'yanitlandi' : 'yeni'}">${yanitlandiMi ? 'Yanıtlandı' : 'Yeni'}</span>
+        <span class="${silinmisMi ? 'silinmisRozet' : `rozet ${yanitlandiMi ? 'yanitlandi' : 'yeni'}`}">${silinmisMi ? 'Silindi' : (yanitlandiMi ? 'Yanıtlandı' : 'Yeni')}</span>
       </div>
       <div class="mesajMetni">${veri.mesaj || ''}</div>
       <div class="tarihMetni">${tarihFormatla(veri.tarih)} · ${veri.platform || ''}</div>
-      ${yanitlandiMi ? `<div class="verilenYanit"><b>Yanıtınız:</b> ${veri.yanit || ''}</div>` : `
+      ${(!silinmisMi && yanitlandiMi) ? `<div class="verilenYanit"><b>Yanıtınız:</b> ${veri.yanit || ''}</div>` : ''}
+      ${(!silinmisMi && !yanitlandiMi) ? `
         <div class="yanitAlani">
           <textarea placeholder="Yanıtınızı yazın..."></textarea>
           <br />
           <button class="yanitButon">Yanıtla ve E-posta Gönder</button>
         </div>
-      `}
+      ` : ''}
+      <div class="kartAltSatir">
+        <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
+      </div>
     `;
 
-    if (!yanitlandiMi) {
+    if (!silinmisMi && !yanitlandiMi) {
       const textarea = kart.querySelector('textarea');
       const buton = kart.querySelector('.yanitButon');
       buton.addEventListener('click', async () => {
@@ -304,10 +327,15 @@
       });
     }
 
+    kart.querySelector(silinmisMi ? '.geriYukleButon' : '.silButon').addEventListener('click', async () => {
+      if (!silinmisMi && !confirm('Bu geri bildirimi silinenler alanına taşımak istiyor musun?')) return;
+      await silDurumunuGuncelle('geribildirimler', id, !silinmisMi);
+    });
+
     return kart;
   }
 
-  function kullaniciKartOlustur(veri) {
+  function kullaniciKartOlustur(id, veri, silinmisMi) {
     const kart = document.createElement('div');
     kart.className = 'kart';
     const isimSatiri = [veri.isim, veri.soyisim].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı';
@@ -317,9 +345,19 @@
           <div class="kartIsim">${isimSatiri}</div>
           <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
         </div>
+        ${silinmisMi ? '<span class="silinmisRozet">Silindi</span>' : ''}
       </div>
       <div class="tarihMetni">Kayıt: ${tarihFormatla(veri.kayitTarihi)} · ${veri.platform || ''}</div>
+      <div class="kartAltSatir">
+        <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
+      </div>
     `;
+
+    kart.querySelector(silinmisMi ? '.geriYukleButon' : '.silButon').addEventListener('click', async () => {
+      if (!silinmisMi && !confirm(`"${isimSatiri}" kullanıcısını silinenler alanına taşımak istiyor musun?`)) return;
+      await silDurumunuGuncelle('kullanicilar', id, !silinmisMi);
+    });
+
     return kart;
   }
 
@@ -330,21 +368,41 @@
     const gbSorgu = query(collection(db, 'geribildirimler'), orderBy('tarih', 'desc'));
     geriBildirimAboneligi = onSnapshot(gbSorgu, (snap) => {
       geriBildirimListesi.innerHTML = '';
-      if (snap.empty) {
-        geriBildirimListesi.innerHTML = '<div class="bosDurum">Henüz geri bildirim yok.</div>';
-        return;
-      }
-      snap.forEach(d => geriBildirimListesi.appendChild(feedbackKartOlustur(d.id, d.data())));
+      silinenGeriBildirimListesi.innerHTML = '';
+      let aktifSayisi = 0;
+      let silinenSayisi = 0;
+      snap.forEach(d => {
+        const veri = d.data();
+        if (veri.silindi === true) {
+          silinenSayisi++;
+          silinenGeriBildirimListesi.appendChild(feedbackKartOlustur(d.id, veri, true));
+        } else {
+          aktifSayisi++;
+          geriBildirimListesi.appendChild(feedbackKartOlustur(d.id, veri, false));
+        }
+      });
+      if (aktifSayisi === 0) geriBildirimListesi.innerHTML = '<div class="bosDurum">Henüz geri bildirim yok.</div>';
+      if (silinenSayisi === 0) silinenGeriBildirimListesi.innerHTML = '<div class="bosDurum">Silinen geri bildirim yok.</div>';
     });
 
     const kSorgu = query(collection(db, 'kullanicilar'), orderBy('kayitTarihi', 'desc'));
     kullaniciAboneligi = onSnapshot(kSorgu, (snap) => {
       kullaniciListesi.innerHTML = '';
-      if (snap.empty) {
-        kullaniciListesi.innerHTML = '<div class="bosDurum">Henüz kayıtlı kullanıcı yok.</div>';
-        return;
-      }
-      snap.forEach(d => kullaniciListesi.appendChild(kullaniciKartOlustur(d.data())));
+      silinenKullaniciListesi.innerHTML = '';
+      let aktifSayisi = 0;
+      let silinenSayisi = 0;
+      snap.forEach(d => {
+        const veri = d.data();
+        if (veri.silindi === true) {
+          silinenSayisi++;
+          silinenKullaniciListesi.appendChild(kullaniciKartOlustur(d.id, veri, true));
+        } else {
+          aktifSayisi++;
+          kullaniciListesi.appendChild(kullaniciKartOlustur(d.id, veri, false));
+        }
+      });
+      if (aktifSayisi === 0) kullaniciListesi.innerHTML = '<div class="bosDurum">Henüz kayıtlı kullanıcı yok.</div>';
+      if (silinenSayisi === 0) silinenKullaniciListesi.innerHTML = '<div class="bosDurum">Silinen kullanıcı yok.</div>';
     });
   }
 
