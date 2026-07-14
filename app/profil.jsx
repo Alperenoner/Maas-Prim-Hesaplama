@@ -1,15 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useState } from 'react';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { db } from '../firebaseConfig';
-import { yedektenGeriYukle } from '../yedekleme';
 
 const RENK = '#4F46E5';
 
-export default function KayitScreen() {
+export default function ProfilScreen() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
 
@@ -17,7 +16,9 @@ export default function KayitScreen() {
   const [soyisim, setSoyisim] = useState('');
   const [eposta, setEposta] = useState('');
   const [hata, setHata] = useState('');
+  const [durum, setDurum] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
+  const [yukleniyorProfil, setYukleniyorProfil] = useState(true);
 
   const bg = isDark ? '#121212' : '#f2f4f8';
   const text = isDark ? '#ffffff' : '#1f2430';
@@ -26,46 +27,67 @@ export default function KayitScreen() {
   const borderColor = isDark ? '#3a3a3a' : '#e6e8ee';
   const mutedText = isDark ? '#9aa0aa' : '#8a8f9a';
 
+  useEffect(() => {
+    AsyncStorage.getItem('kullaniciProfili').then(veri => {
+      if (veri) {
+        const profil = JSON.parse(veri);
+        setIsim(profil.isim || '');
+        setSoyisim(profil.soyisim || '');
+        setEposta(profil.eposta || '');
+      }
+      setYukleniyorProfil(false);
+    });
+  }, []);
+
   const epostaGecerliMi = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta.trim());
 
   const kaydet = async () => {
-    if (!isim.trim() || !soyisim.trim()) { setHata('Lütfen isim ve soyisminizi girin.'); return; }
-    if (!epostaGecerliMi) { setHata('Lütfen geçerli bir e-posta adresi girin.'); return; }
+    if (!isim.trim() || !soyisim.trim()) { setHata('Lütfen isim ve soyisminizi girin.'); setDurum(null); return; }
+    if (!epostaGecerliMi) { setHata('Lütfen geçerli bir e-posta adresi girin.'); setDurum(null); return; }
 
     setHata('');
     setYukleniyor(true);
     const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim() };
-    await AsyncStorage.setItem('kullaniciProfili', JSON.stringify(profil));
 
     try {
-      const belge = await addDoc(collection(db, 'kullanicilar'), {
-        ...profil,
-        kayitTarihi: serverTimestamp(),
-        platform: Platform.OS,
-      });
-      await AsyncStorage.setItem('kullaniciDocId', belge.id);
+      await AsyncStorage.setItem('kullaniciProfili', JSON.stringify(profil));
+
+      const docId = await AsyncStorage.getItem('kullaniciDocId');
+      if (docId) {
+        await updateDoc(doc(db, 'kullanicilar', docId), profil);
+      } else {
+        const belge = await addDoc(collection(db, 'kullanicilar'), {
+          ...profil,
+          kayitTarihi: serverTimestamp(),
+          platform: Platform.OS,
+        });
+        await AsyncStorage.setItem('kullaniciDocId', belge.id);
+      }
+      setDurum('basarili');
     } catch (e) {
-      console.log('Kullanıcı kaydı Firestore hatası:', e);
+      console.log('Profil güncelleme hatası:', e);
+      setDurum('hata');
+    } finally {
+      setYukleniyor(false);
     }
-
-    const yedek = await yedektenGeriYukle(profil.eposta);
-    if (yedek) {
-      if (yedek.maasKayitlari) await AsyncStorage.setItem('maasKayitlari', JSON.stringify(yedek.maasKayitlari));
-      if (yedek.harcamaKayitlari) await AsyncStorage.setItem('harcamaKayitlari', JSON.stringify(yedek.harcamaKayitlari));
-    }
-
-    setYukleniyor(false);
-    router.replace('/');
   };
+
+  if (yukleniyorProfil) {
+    return (
+      <View style={[styles.container, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={RENK} />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.hero, { backgroundColor: RENK }]}>
         <View style={styles.heroIconKutu}>
-          <Ionicons name="person-add" size={26} color="#fff" />
+          <Ionicons name="person-circle" size={26} color="#fff" />
         </View>
-        <Text style={styles.heroBaslik}>Hoş Geldin!</Text>
-        <Text style={styles.heroAlt}>Devam etmek için birkaç bilgi alalım</Text>
+        <Text style={styles.heroBaslik}>Profilim</Text>
+        <Text style={styles.heroAlt}>Bilgilerini buradan güncelleyebilirsin</Text>
       </View>
 
       <View style={[styles.card, { backgroundColor: cardBg, borderColor: borderColor }]}>
@@ -99,14 +121,20 @@ export default function KayitScreen() {
         />
 
         {hata ? <Text style={styles.hataYazisi}>{hata}</Text> : null}
+        {durum === 'basarili' && <Text style={styles.basariYazisi}>✓ Bilgilerin güncellendi.</Text>}
+        {durum === 'hata' && <Text style={styles.hataYazisi}>Güncellenirken bir sorun oluştu, tekrar dene.</Text>}
 
         <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }]} onPress={kaydet} disabled={yukleniyor}>
           {yukleniyor ? (
             <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
           ) : (
-            <Ionicons name="arrow-forward-circle" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Ionicons name="save" size={18} color="#fff" style={{ marginRight: 8 }} />
           )}
-          <Text style={styles.butonYazi}>{yukleniyor ? 'Kontrol ediliyor...' : 'Devam Et'}</Text>
+          <Text style={styles.butonYazi}>{yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => router.back()}>
+          <Text style={{ color: RENK, fontSize: 15, fontWeight: '600' }}>Geri Dön</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -123,6 +151,7 @@ const styles = StyleSheet.create({
   etiket: { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 5 },
   input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 15 },
   hataYazisi: { color: '#dc3545', marginTop: 12, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  basariYazisi: { color: '#16A34A', marginTop: 12, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   buton: { marginTop: 20, padding: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   butonYazi: { color: '#fff', fontSize: 15, fontWeight: '800' },
 });

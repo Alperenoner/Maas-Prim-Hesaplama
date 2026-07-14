@@ -102,6 +102,15 @@
     font-size: 13px;
   }
   .sekmeButon.aktif { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+  #aramaKutusu {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
 
   .kart {
     background: var(--card);
@@ -138,6 +147,7 @@
   .kartAltSatir { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
   .silButon { background: #fdecec; color: var(--red); padding: 8px 14px; font-size: 12px; }
   .geriYukleButon { background: #eaf7ee; color: var(--green); padding: 8px 14px; font-size: 12px; }
+  .kaliciSilButon { background: var(--red); color: #fff; padding: 8px 14px; font-size: 12px; }
   .silinmisRozet { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; color: #fff; background: var(--muted); white-space: nowrap; }
 </style>
 </head>
@@ -171,6 +181,8 @@
     <button class="sekmeButon" data-sekme="silinenKullanicilar">Silinen Kullanıcılar</button>
   </div>
 
+  <input id="aramaKutusu" type="text" placeholder="İsim, soyisim veya e-posta ile ara..." />
+
   <div id="geriBildirimListesi"></div>
   <div id="kullaniciListesi" class="hidden"></div>
   <div id="silinenGeriBildirimListesi" class="hidden"></div>
@@ -183,7 +195,7 @@
     getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
   import {
-    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteField, serverTimestamp
+    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, deleteField, serverTimestamp
   } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
   const firebaseConfig = {
@@ -256,6 +268,11 @@
       : { silindi: false, silinmeTarihi: deleteField() });
   }
 
+  async function kaliciSil(koleksiyon, id, aciklama) {
+    if (!confirm(`${aciklama}\n\nBu işlem GERİ ALINAMAZ, kayıt tamamen silinecek. Emin misin?`)) return;
+    await deleteDoc(doc(db, koleksiyon, id));
+  }
+
   function feedbackKartOlustur(id, veri, silinmisMi) {
     const kart = document.createElement('div');
     kart.className = 'kart';
@@ -282,6 +299,7 @@
         </div>
       ` : ''}
       <div class="kartAltSatir">
+        ${silinmisMi ? '<button class="kaliciSilButon">Tamamen Sil</button>' : ''}
         <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
       </div>
     `;
@@ -332,6 +350,12 @@
       await silDurumunuGuncelle('geribildirimler', id, !silinmisMi);
     });
 
+    if (silinmisMi) {
+      kart.querySelector('.kaliciSilButon').addEventListener('click', () => {
+        kaliciSil('geribildirimler', id, `"${isimSatiri}" adlı kişinin geri bildirimini kalıcı olarak silmek üzeresin.`);
+      });
+    }
+
     return kart;
   }
 
@@ -349,6 +373,7 @@
       </div>
       <div class="tarihMetni">Kayıt: ${tarihFormatla(veri.kayitTarihi)} · ${veri.platform || ''}</div>
       <div class="kartAltSatir">
+        ${silinmisMi ? '<button class="kaliciSilButon">Tamamen Sil</button>' : ''}
         <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
       </div>
     `;
@@ -358,57 +383,71 @@
       await silDurumunuGuncelle('kullanicilar', id, !silinmisMi);
     });
 
+    if (silinmisMi) {
+      kart.querySelector('.kaliciSilButon').addEventListener('click', () => {
+        kaliciSil('kullanicilar', id, `"${isimSatiri}" kullanıcısını kalıcı olarak silmek üzeresin.`);
+      });
+    }
+
     return kart;
   }
 
   let geriBildirimAboneligi = null;
   let kullaniciAboneligi = null;
+  let sonGeriBildirimler = [];
+  let sonKullanicilar = [];
+  const aramaKutusu = document.getElementById('aramaKutusu');
+
+  function eslesiyorMu(veri, terim) {
+    if (!terim) return true;
+    const hedef = `${veri.isim || ''} ${veri.soyisim || ''} ${veri.eposta || ''}`.toLocaleLowerCase('tr-TR');
+    return hedef.includes(terim.toLocaleLowerCase('tr-TR'));
+  }
+
+  function listeleriYenidenCiz() {
+    const terim = aramaKutusu.value.trim();
+
+    geriBildirimListesi.innerHTML = '';
+    silinenGeriBildirimListesi.innerHTML = '';
+    const gbAktif = sonGeriBildirimler.filter(x => x.veri.silindi !== true && eslesiyorMu(x.veri, terim));
+    const gbSilinen = sonGeriBildirimler.filter(x => x.veri.silindi === true && eslesiyorMu(x.veri, terim));
+    gbAktif.forEach(x => geriBildirimListesi.appendChild(feedbackKartOlustur(x.id, x.veri, false)));
+    gbSilinen.forEach(x => silinenGeriBildirimListesi.appendChild(feedbackKartOlustur(x.id, x.veri, true)));
+    if (gbAktif.length === 0) geriBildirimListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen geri bildirim yok.' : 'Henüz geri bildirim yok.'}</div>`;
+    if (gbSilinen.length === 0) silinenGeriBildirimListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen silinen geri bildirim yok.' : 'Silinen geri bildirim yok.'}</div>`;
+
+    kullaniciListesi.innerHTML = '';
+    silinenKullaniciListesi.innerHTML = '';
+    const kAktif = sonKullanicilar.filter(x => x.veri.silindi !== true && eslesiyorMu(x.veri, terim));
+    const kSilinen = sonKullanicilar.filter(x => x.veri.silindi === true && eslesiyorMu(x.veri, terim));
+    kAktif.forEach(x => kullaniciListesi.appendChild(kullaniciKartOlustur(x.id, x.veri, false)));
+    kSilinen.forEach(x => silinenKullaniciListesi.appendChild(kullaniciKartOlustur(x.id, x.veri, true)));
+    if (kAktif.length === 0) kullaniciListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen kullanıcı yok.' : 'Henüz kayıtlı kullanıcı yok.'}</div>`;
+    if (kSilinen.length === 0) silinenKullaniciListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen silinen kullanıcı yok.' : 'Silinen kullanıcı yok.'}</div>`;
+  }
+
+  aramaKutusu.addEventListener('input', listeleriYenidenCiz);
 
   function verileriDinlemeyeBasla() {
     const gbSorgu = query(collection(db, 'geribildirimler'), orderBy('tarih', 'desc'));
     geriBildirimAboneligi = onSnapshot(gbSorgu, (snap) => {
-      geriBildirimListesi.innerHTML = '';
-      silinenGeriBildirimListesi.innerHTML = '';
-      let aktifSayisi = 0;
-      let silinenSayisi = 0;
-      snap.forEach(d => {
-        const veri = d.data();
-        if (veri.silindi === true) {
-          silinenSayisi++;
-          silinenGeriBildirimListesi.appendChild(feedbackKartOlustur(d.id, veri, true));
-        } else {
-          aktifSayisi++;
-          geriBildirimListesi.appendChild(feedbackKartOlustur(d.id, veri, false));
-        }
-      });
-      if (aktifSayisi === 0) geriBildirimListesi.innerHTML = '<div class="bosDurum">Henüz geri bildirim yok.</div>';
-      if (silinenSayisi === 0) silinenGeriBildirimListesi.innerHTML = '<div class="bosDurum">Silinen geri bildirim yok.</div>';
+      sonGeriBildirimler = snap.docs.map(d => ({ id: d.id, veri: d.data() }));
+      listeleriYenidenCiz();
     });
 
     const kSorgu = query(collection(db, 'kullanicilar'), orderBy('kayitTarihi', 'desc'));
     kullaniciAboneligi = onSnapshot(kSorgu, (snap) => {
-      kullaniciListesi.innerHTML = '';
-      silinenKullaniciListesi.innerHTML = '';
-      let aktifSayisi = 0;
-      let silinenSayisi = 0;
-      snap.forEach(d => {
-        const veri = d.data();
-        if (veri.silindi === true) {
-          silinenSayisi++;
-          silinenKullaniciListesi.appendChild(kullaniciKartOlustur(d.id, veri, true));
-        } else {
-          aktifSayisi++;
-          kullaniciListesi.appendChild(kullaniciKartOlustur(d.id, veri, false));
-        }
-      });
-      if (aktifSayisi === 0) kullaniciListesi.innerHTML = '<div class="bosDurum">Henüz kayıtlı kullanıcı yok.</div>';
-      if (silinenSayisi === 0) silinenKullaniciListesi.innerHTML = '<div class="bosDurum">Silinen kullanıcı yok.</div>';
+      sonKullanicilar = snap.docs.map(d => ({ id: d.id, veri: d.data() }));
+      listeleriYenidenCiz();
     });
   }
 
   function dinlemeyiDurdur() {
     if (geriBildirimAboneligi) geriBildirimAboneligi();
     if (kullaniciAboneligi) kullaniciAboneligi();
+    sonGeriBildirimler = [];
+    sonKullanicilar = [];
+    aramaKutusu.value = '';
   }
 
   onAuthStateChanged(auth, (user) => {

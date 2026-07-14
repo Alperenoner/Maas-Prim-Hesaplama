@@ -65,10 +65,21 @@ export default function TabLayout() {
     </TouchableOpacity>
   );
 
+  const ProfilButonu = () => (
+    <TouchableOpacity onPress={() => router.push('/profil')} style={{ marginRight: 15, padding: 5 }}>
+      <Ionicons name="person-circle-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
+    </TouchableOpacity>
+  );
+
   return (
     <ThemeContext.Provider value={{ isDark }}>
       <Tabs screenOptions={{
-        headerRight: () => <TemaButonu />,
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ProfilButonu />
+            <TemaButonu />
+          </View>
+        ),
         headerLeft: () => <FeedbackButonu />,
         headerStyle: { backgroundColor: isDark ? '#121212' : '#ffffff' },
         headerTintColor: isDark ? '#ffffff' : '#000000',
