@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prim Hesaplama - Yönetim Paneli</title>
+<style>
+  :root {
+    --indigo: #4F46E5;
+    --red: #DC2626;
+    --green: #16A34A;
+    --amber: #F59E0B;
+    --bg: #f2f4f8;
+    --card: #ffffff;
+    --border: #e6e8ee;
+    --text: #1f2430;
+    --muted: #8a8f9a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .hidden { display: none !important; }
+
+  /* Login */
+  #girisEkrani {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .girisKutu {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 32px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  }
+  .girisHero {
+    background: var(--indigo);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 22px;
+    color: #fff;
+  }
+  .girisHero h1 { font-size: 20px; margin: 0 0 4px; }
+  .girisHero p { font-size: 13px; margin: 0; opacity: 0.85; }
+  label { font-size: 13px; font-weight: 600; display: block; margin: 14px 0 6px; }
+  input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #f7f8fb;
+    font-size: 15px;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+  .anaButon {
+    width: 100%;
+    background: var(--indigo);
+    color: #fff;
+    padding: 13px;
+    margin-top: 18px;
+  }
+  .hataMesaji { color: var(--red); font-size: 13px; margin-top: 12px; text-align: center; font-weight: 600; }
+
+  /* Panel */
+  #panelEkrani { max-width: 900px; margin: 0 auto; padding: 20px; }
+  .ustBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--indigo);
+    border-radius: 16px;
+    padding: 16px 20px;
+    color: #fff;
+    margin-bottom: 18px;
+  }
+  .ustBar h1 { font-size: 18px; margin: 0; }
+  .cikisButon { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 14px; font-size: 13px; }
+
+  .sekmeler { display: flex; gap: 10px; margin-bottom: 18px; }
+  .sekmeButon {
+    flex: 1;
+    padding: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .sekmeButon.aktif { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+
+  .kart {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .kartUst { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+  .kartIsim { font-weight: 700; font-size: 15px; }
+  .kartEposta { font-size: 12px; color: var(--muted); }
+  .rozet { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; color: #fff; white-space: nowrap; }
+  .rozet.yeni { background: var(--amber); }
+  .rozet.yanitlandi { background: var(--green); }
+  .mesajMetni { font-size: 14px; margin: 8px 0; line-height: 1.5; white-space: pre-wrap; }
+  .tarihMetni { font-size: 11px; color: var(--muted); }
+  .yanitAlani { margin-top: 12px; }
+  .yanitAlani textarea {
+    width: 100%;
+    min-height: 70px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #f7f8fb;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .yanitButon { background: var(--indigo); color: #fff; padding: 9px 16px; font-size: 13px; margin-top: 8px; }
+  .yanitButon:disabled { opacity: 0.6; cursor: default; }
+  .verilenYanit { background: #eef0fc; border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 13px; }
+  .verilenYanit b { color: var(--indigo); }
+  .bosDurum { text-align: center; color: var(--muted); padding: 40px 0; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div id="girisEkrani">
+  <div class="girisKutu">
+    <div class="girisHero">
+      <h1>Yönetim Paneli</h1>
+      <p>Devam etmek için giriş yap</p>
+    </div>
+    <label>E-posta</label>
+    <input id="girisEposta" type="email" placeholder="ornek@mail.com" autocomplete="username" />
+    <label>Şifre</label>
+    <input id="girisSifre" type="password" placeholder="••••••••" autocomplete="current-password" />
+    <button class="anaButon" id="girisButonu">Giriş Yap</button>
+    <div class="hataMesaji hidden" id="girisHata"></div>
+  </div>
+</div>
+
+<div id="panelEkrani" class="hidden">
+  <div class="ustBar">
+    <h1>Yönetim Paneli</h1>
+    <button class="cikisButon" id="cikisButonu">Çıkış Yap</button>
+  </div>
+
+  <div class="sekmeler">
+    <button class="sekmeButon aktif" id="sekmeGeriBildirim">Geri Bildirimler</button>
+    <button class="sekmeButon" id="sekmeKullanicilar">Kayıtlı Kullanıcılar</button>
+  </div>
+
+  <div id="geriBildirimListesi"></div>
+  <div id="kullaniciListesi" class="hidden"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+  } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+  import {
+    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "KALDIRILDI_FIREBASE_API_KEY",
+    authDomain: "maas-primtakip.firebaseapp.com",
+    projectId: "maas-primtakip",
+    storageBucket: "maas-primtakip.firebasestorage.app",
+    messagingSenderId: "589781739238",
+    appId: "1:589781739238:web:0512b7d1b174550ae87d27",
+    measurementId: "G-40MYEFZ2HC"
+  };
+
+  const EMAILJS_SERVICE_ID = 'KALDIRILDI_EMAILJS_SERVICE_ID';
+  const EMAILJS_TEMPLATE_ID = 'KALDIRILDI_EMAILJS_TEMPLATE_ID';
+  const EMAILJS_PUBLIC_KEY = 'KALDIRILDI_EMAILJS_PUBLIC_KEY';
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const girisEkrani = document.getElementById('girisEkrani');
+  const panelEkrani = document.getElementById('panelEkrani');
+  const girisButonu = document.getElementById('girisButonu');
+  const girisHata = document.getElementById('girisHata');
+  const cikisButonu = document.getElementById('cikisButonu');
+  const sekmeGeriBildirim = document.getElementById('sekmeGeriBildirim');
+  const sekmeKullanicilar = document.getElementById('sekmeKullanicilar');
+  const geriBildirimListesi = document.getElementById('geriBildirimListesi');
+  const kullaniciListesi = document.getElementById('kullaniciListesi');
+
+  girisButonu.addEventListener('click', async () => {
+    const eposta = document.getElementById('girisEposta').value.trim();
+    const sifre = document.getElementById('girisSifre').value;
+    girisHata.classList.add('hidden');
+    try {
+      await signInWithEmailAndPassword(auth, eposta, sifre);
+    } catch (e) {
+      girisHata.textContent = 'Giriş başarısız: e-posta veya şifre hatalı.';
+      girisHata.classList.remove('hidden');
+    }
+  });
+
+  cikisButonu.addEventListener('click', () => signOut(auth));
+
+  sekmeGeriBildirim.addEventListener('click', () => {
+    sekmeGeriBildirim.classList.add('aktif');
+    sekmeKullanicilar.classList.remove('aktif');
+    geriBildirimListesi.classList.remove('hidden');
+    kullaniciListesi.classList.add('hidden');
+  });
+  sekmeKullanicilar.addEventListener('click', () => {
+    sekmeKullanicilar.classList.add('aktif');
+    sekmeGeriBildirim.classList.remove('aktif');
+    kullaniciListesi.classList.remove('hidden');
+    geriBildirimListesi.classList.add('hidden');
+  });
+
+  function tarihFormatla(ts) {
+    if (!ts || !ts.toDate) return '';
+    return ts.toDate().toLocaleString('tr-TR');
+  }
+
+  function feedbackKartOlustur(id, veri) {
+    const kart = document.createElement('div');
+    kart.className = 'kart';
+
+    const isimSatiri = [veri.isim, veri.soyisim].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı';
+    const yanitlandiMi = veri.durum === 'Yanıtlandı';
+
+    kart.innerHTML = `
+      <div class="kartUst">
+        <div>
+          <div class="kartIsim">${isimSatiri}</div>
+          <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
+        </div>
+        <span class="rozet ${yanitlandiMi ? 'yanitlandi' : 'yeni'}">${yanitlandiMi ? 'Yanıtlandı' : 'Yeni'}</span>
+      </div>
+      <div class="mesajMetni">${veri.mesaj || ''}</div>
+      <div class="tarihMetni">${tarihFormatla(veri.tarih)} · ${veri.platform || ''}</div>
+      ${yanitlandiMi ? `<div class="verilenYanit"><b>Yanıtınız:</b> ${veri.yanit || ''}</div>` : `
+        <div class="yanitAlani">
+          <textarea placeholder="Yanıtınızı yazın..."></textarea>
+          <br />
+          <button class="yanitButon">Yanıtla ve E-posta Gönder</button>
+        </div>
+      `}
+    `;
+
+    if (!yanitlandiMi) {
+      const textarea = kart.querySelector('textarea');
+      const buton = kart.querySelector('.yanitButon');
+      buton.addEventListener('click', async () => {
+        const yanitMetni = textarea.value.trim();
+        if (!yanitMetni) { alert('Lütfen bir yanıt yazın.'); return; }
+        if (!veri.eposta) { alert('Bu kullanıcının e-posta adresi kayıtlı değil, e-posta gönderilemez.'); return; }
+
+        buton.disabled = true;
+        buton.textContent = 'Gönderiliyor...';
+        try {
+          await updateDoc(doc(db, 'geribildirimler', id), {
+            durum: 'Yanıtlandı',
+            yanit: yanitMetni,
+            yanitTarihi: serverTimestamp(),
+          });
+
+          await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              service_id: EMAILJS_SERVICE_ID,
+              template_id: EMAILJS_TEMPLATE_ID,
+              user_id: EMAILJS_PUBLIC_KEY,
+              template_params: {
+                to_email: veri.eposta,
+                isim: veri.isim || '',
+                soyisim: veri.soyisim || '',
+                mesaj: veri.mesaj || '',
+                icerik: yanitMetni,
+              },
+            }),
+          });
+        } catch (e) {
+          alert('Bir hata oluştu: ' + e.message);
+          buton.disabled = false;
+          buton.textContent = 'Yanıtla ve E-posta Gönder';
+        }
+      });
+    }
+
+    return kart;
+  }
+
+  function kullaniciKartOlustur(veri) {
+    const kart = document.createElement('div');
+    kart.className = 'kart';
+    const isimSatiri = [veri.isim, veri.soyisim].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı';
+    kart.innerHTML = `
+      <div class="kartUst">
+        <div>
+          <div class="kartIsim">${isimSatiri}</div>
+          <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
+        </div>
+      </div>
+      <div class="tarihMetni">Kayıt: ${tarihFormatla(veri.kayitTarihi)} · ${veri.platform || ''}</div>
+    `;
+    return kart;
+  }
+
+  let geriBildirimAboneligi = null;
+  let kullaniciAboneligi = null;
+
+  function verileriDinlemeyeBasla() {
+    const gbSorgu = query(collection(db, 'geribildirimler'), orderBy('tarih', 'desc'));
+    geriBildirimAboneligi = onSnapshot(gbSorgu, (snap) => {
+      geriBildirimListesi.innerHTML = '';
+      if (snap.empty) {
+        geriBildirimListesi.innerHTML = '<div class="bosDurum">Henüz geri bildirim yok.</div>';
+        return;
+      }
+      snap.forEach(d => geriBildirimListesi.appendChild(feedbackKartOlustur(d.id, d.data())));
+    });
+
+    const kSorgu = query(collection(db, 'kullanicilar'), orderBy('kayitTarihi', 'desc'));
+    kullaniciAboneligi = onSnapshot(kSorgu, (snap) => {
+      kullaniciListesi.innerHTML = '';
+      if (snap.empty) {
+        kullaniciListesi.innerHTML = '<div class="bosDurum">Henüz kayıtlı kullanıcı yok.</div>';
+        return;
+      }
+      snap.forEach(d => kullaniciListesi.appendChild(kullaniciKartOlustur(d.data())));
+    });
+  }
+
+  function dinlemeyiDurdur() {
+    if (geriBildirimAboneligi) geriBildirimAboneligi();
+    if (kullaniciAboneligi) kullaniciAboneligi();
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      girisEkrani.classList.add('hidden');
+      panelEkrani.classList.remove('hidden');
+      verileriDinlemeyeBasla();
+    } else {
+      panelEkrani.classList.add('hidden');
+      girisEkrani.classList.remove('hidden');
+      dinlemeyiDurdur();
+    }
+  });
+</script>
+
+</body>
+</html>

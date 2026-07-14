@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "public": "admin-panel",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

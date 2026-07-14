@@ -36,8 +36,6 @@ export default function FeedbackScreen() {
             to_email: hedefProfil.eposta,
             isim: hedefProfil.isim,
             soyisim: hedefProfil.soyisim,
-            unvan: hedefProfil.unvan,
-            hitap: `${hedefProfil.isim} ${hedefProfil.unvan}`,
             mesaj: mesaj,
           },
         }),
@@ -61,7 +59,6 @@ export default function FeedbackScreen() {
         isim: profil?.isim || null,
         soyisim: profil?.soyisim || null,
         eposta: profil?.eposta || null,
-        unvan: profil?.unvan || null,
       });
 
       if (profil?.eposta) {

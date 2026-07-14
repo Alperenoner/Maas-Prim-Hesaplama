@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { db } from '../firebaseConfig';
 
 const RENK = '#4F46E5';
 
@@ -13,7 +15,6 @@ export default function KayitScreen() {
   const [isim, setIsim] = useState('');
   const [soyisim, setSoyisim] = useState('');
   const [eposta, setEposta] = useState('');
-  const [unvan, setUnvan] = useState('Bey');
   const [hata, setHata] = useState('');
 
   const bg = isDark ? '#121212' : '#f2f4f8';
@@ -30,8 +31,19 @@ export default function KayitScreen() {
     if (!epostaGecerliMi) { setHata('Lütfen geçerli bir e-posta adresi girin.'); return; }
 
     setHata('');
-    const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim(), unvan };
+    const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim() };
     await AsyncStorage.setItem('kullaniciProfili', JSON.stringify(profil));
+
+    try {
+      await addDoc(collection(db, 'kullanicilar'), {
+        ...profil,
+        kayitTarihi: serverTimestamp(),
+        platform: Platform.OS,
+      });
+    } catch (e) {
+      console.log('Kullanıcı kaydı Firestore hatası:', e);
+    }
+
     router.replace('/');
   };
 
@@ -75,22 +87,6 @@ export default function KayitScreen() {
           autoCapitalize="none"
         />
 
-        <Text style={[styles.etiket, { color: text }]}>Hitap Şekli</Text>
-        <View style={styles.unvanSatir}>
-          <TouchableOpacity
-            style={[styles.unvanButon, { borderColor: borderColor }, unvan === 'Bey' && { backgroundColor: RENK, borderColor: RENK }]}
-            onPress={() => setUnvan('Bey')}
-          >
-            <Text style={[styles.unvanYazi, { color: unvan === 'Bey' ? '#fff' : text }]}>Bey</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.unvanButon, { borderColor: borderColor }, unvan === 'Hanım' && { backgroundColor: RENK, borderColor: RENK }]}
-            onPress={() => setUnvan('Hanım')}
-          >
-            <Text style={[styles.unvanYazi, { color: unvan === 'Hanım' ? '#fff' : text }]}>Hanım</Text>
-          </TouchableOpacity>
-        </View>
-
         {hata ? <Text style={styles.hataYazisi}>{hata}</Text> : null}
 
         <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }]} onPress={kaydet}>
@@ -111,9 +107,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: 18, borderWidth: 1, padding: 18 },
   etiket: { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 5 },
   input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 15 },
-  unvanSatir: { flexDirection: 'row', gap: 10 },
-  unvanButon: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  unvanYazi: { fontSize: 14, fontWeight: '700' },
   hataYazisi: { color: '#dc3545', marginTop: 12, fontSize: 13, fontWeight: '600', textAlign: 'center' },
   buton: { marginTop: 20, padding: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   butonYazi: { color: '#fff', fontSize: 15, fontWeight: '800' },
