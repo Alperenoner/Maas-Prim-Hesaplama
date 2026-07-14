@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Tabs, useRouter } from 'expo-router';
 import { createContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const ThemeContext = createContext();
 
@@ -18,6 +19,7 @@ export default function TabLayout() {
   const [isDark, setIsDark] = useState(systemTheme);
   const [profilKontrolEdildi, setProfilKontrolEdildi] = useState(false);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     AsyncStorage.getItem('seciliTema').then(savedTheme => {
@@ -76,8 +78,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: isDark ? '#121212' : '#ffffff',
           borderTopColor: isDark ? '#333333' : '#eeeeee',
-          height: 62,
-          paddingBottom: 8,
+          height: 54 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 6,
         }
       }}>
