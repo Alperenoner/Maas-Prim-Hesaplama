@@ -1,7 +1,12 @@
 {
+  "cli": {
+    "version": ">= 12.0.0"
+  },
   "build": {
     "preview": {
       "channel": "preview",
+      "environment": "preview",
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
@@ -10,7 +15,14 @@
       }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_ROUTER_DISABLE_RN_NAVIGATION_CHECK": "1"
+      }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
