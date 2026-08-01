@@ -83,13 +83,13 @@ export default function TabLayout() {
         ),
         tabBarInactiveTintColor: color.textFaint,
         tabBarShowLabel: false,
-        tabBarItemStyle: { paddingTop: 8, paddingBottom: 4 },
+        tabBarItemStyle: { paddingTop: 6, paddingBottom: 4 },
         tabBarStyle: {
           backgroundColor: color.surface,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: color.border,
           paddingBottom: insets.bottom,
-          height: 60 + insets.bottom,
+          height: 64 + insets.bottom,
           ...(Platform.OS === 'ios' ? {} : { elevation: 0 }),
         },
       }}
@@ -109,15 +109,33 @@ export default function TabLayout() {
             // düzenimizde çizip varsayılanı kapatarak sorun tümüyle ortadan kalkıyor.
             tabBarIcon: ({ focused, color: renk }) => (
               <View style={{ alignItems: 'center', justifyContent: 'center', width: 76 }}>
-                <Ionicons
-                  name={focused ? sekme.icon : `${sekme.icon}-outline`}
-                  size={23}
-                  color={renk}
-                />
+                {/* Aktif sekmenin ikonu vurgu renginde bir hap zemine oturuyor —
+                    hangi sekmede olduğun tek bakışta anlaşılıyor. */}
+                <View
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 3,
+                    borderRadius: 999,
+                    backgroundColor: focused
+                      ? accent[TAB_ACCENTS[sekme.name]].tint
+                      : 'transparent',
+                  }}
+                >
+                  <Ionicons
+                    name={focused ? sekme.icon : `${sekme.icon}-outline`}
+                    size={22}
+                    color={renk}
+                  />
+                </View>
                 <Text
                   numberOfLines={1}
                   color={renk}
-                  style={{ fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 3 }}
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 15,
+                    fontWeight: focused ? '700' : '600',
+                    marginTop: 2,
+                  }}
                 >
                   {sekme.title}
                 </Text>

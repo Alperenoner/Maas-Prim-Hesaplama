@@ -206,7 +206,7 @@ export default function GecmisEkrani() {
       {secilen ? <AyKirilimi kayit={secilen} /> : null}
 
       {/* ---------------- Tüm aylar ---------------- */}
-      <SectionLabel label="Tüm aylar" />
+      <SectionLabel label="Tüm aylar" accent={ACCENT} />
 
       <Card padded={false}>
         {kayitlar.map((kayit, sira) => {

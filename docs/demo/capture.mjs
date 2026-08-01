@@ -64,13 +64,14 @@ const EKRANLAR = [
   ['03-hizli-acik', 'explore', 'light', 'Hazır senaryolar'],
   ['04-gecmis-acik', 'history', 'light', 'AYLAR'],
   ['05-profil-acik', 'profil', 'light', 'Bulut yedeği'],
-  ['06-geribildirim-acik', 'feedback', 'light', 'Geri bildirim'],
+  ['06-geribildirim-acik', 'feedback', 'light', 'Konu nedir?', [tikla('Bir hata var')]],
   ['07-kayit-acik', 'kayit', 'light', 'Prim Hesaplama'],
   ['08-maas-koyu', '', 'dark', 'Prim kalemleri', MAAS_EYLEMI],
   ['09-harcamalar-koyu', 'expenses', 'dark', 'Yeni harcama'],
   ['10-gecmis-koyu', 'history', 'dark', 'AYLAR'],
   ['11-hizli-koyu', 'explore', 'dark', 'Hazır senaryolar'],
   ['12-profil-koyu', 'profil', 'dark', 'Bulut yedeği'],
+  ['13-geribildirim-koyu', 'feedback', 'dark', 'Konu nedir?', [tikla('Bir hata var')]],
 ];
 
 const bekle = (ms) => new Promise((c) => setTimeout(c, ms));
@@ -141,7 +142,10 @@ async function main() {
 
   if (!derlemeyiAtla) {
     console.log('→ Web sürümü derleniyor…');
-    const sonuc = spawnSync('npx', ['expo', 'export', '--platform', 'web'], {
+    // `--clear`: Metro önbelleği bayat kaldığında `process.env.EXPO_PUBLIC_*`
+    // değerleri pakete `undefined` olarak gömülüyor ve uygulama açılışta
+    // "Firebase yapılandırması eksik" hatasıyla çöküyor.
+    const sonuc = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear'], {
       cwd: KOK,
       stdio: 'ignore',
     });

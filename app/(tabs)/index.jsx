@@ -304,7 +304,7 @@ export default function MaasEkrani() {
       </View>
 
       {/* ---------------- Son kayıtlar ---------------- */}
-      <SectionLabel label="Son kayıtlar" />
+      <SectionLabel label="Son kayıtlar" accent={ACCENT} />
 
       {kayitlar.length === 0 ? (
         <Card padded={false}>

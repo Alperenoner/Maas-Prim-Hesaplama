@@ -27,7 +27,7 @@ export function PageHeader({ title, subtitle, icon, accent = 'maas', right, styl
         style,
       ]}
     >
-      {icon ? <IconTile icon={icon} accent={accent} size={42} /> : null}
+      {icon ? <IconTile icon={icon} accent={accent} size={46} filled /> : null}
 
       <View style={{ flex: 1 }}>
         <Text variant="title" numberOfLines={1}>
@@ -45,9 +45,10 @@ export function PageHeader({ title, subtitle, icon, accent = 'maas', right, styl
   );
 }
 
-/** Liste bölümlerinin üstündeki küçük başlık. */
-export function SectionLabel({ label, right, style }) {
-  const { spacing } = useTheme();
+/** Liste bölümlerinin üstündeki küçük başlık — solunda vurgu rengi çizgisiyle. */
+export function SectionLabel({ label, right, accent, style }) {
+  const { spacing, accent: accentler, radius } = useTheme();
+  const vurgu = accent ? accentler[accent] : null;
   return (
     <View
       style={[
@@ -61,9 +62,21 @@ export function SectionLabel({ label, right, style }) {
         style,
       ]}
     >
-      <Text variant="overline" tone="faint" style={{ textTransform: 'uppercase' }}>
-        {label}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        {vurgu ? (
+          <View
+            style={{ width: 3, height: 14, borderRadius: radius.sm, backgroundColor: vurgu.base }}
+          />
+        ) : null}
+        <Text
+          variant="overline"
+          color={vurgu?.base}
+          tone={vurgu ? undefined : 'faint'}
+          style={{ textTransform: 'uppercase' }}
+        >
+          {label}
+        </Text>
+      </View>
       {right}
     </View>
   );

@@ -87,7 +87,8 @@ service cloud.firestore {
           && metin(d.mesaj, 2000)
           && d.durum == 'Yeni'
           && d.tarih == request.time
-          && d.keys().hasOnly(['uid', 'mesaj', 'isim', 'soyisim', 'eposta',
+          && d.kategori in ['hata', 'oneri', 'soru', 'diger']
+          && d.keys().hasOnly(['uid', 'mesaj', 'kategori', 'isim', 'soyisim', 'eposta',
                                'durum', 'platform', 'tarih']);
       }
 

@@ -97,20 +97,29 @@ export const lightTheme = {
   },
   accent: accentsLight,
   status: statusLight,
+  // Android `shadowColor/Offset/Opacity/Radius` değerlerini yok sayar, yalnızca
+  // `elevation` çalışır. Önceki elevation:1 değeri kartları zeminden ayırmıyordu.
   shadow: {
     card: {
       shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 3,
-      elevation: 1,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
     },
     raised: {
       shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.14,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    accent: {
+      shadowColor: '#4F46E5',
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      elevation: 6,
+      shadowOpacity: 0.3,
+      shadowRadius: 14,
+      elevation: 8,
     },
   },
 };
@@ -136,17 +145,24 @@ export const darkTheme = {
   shadow: {
     card: {
       shadowColor: '#000000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.3,
-      shadowRadius: 3,
-      elevation: 1,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.45,
+      shadowRadius: 8,
+      elevation: 3,
     },
     raised: {
       shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.6,
+      shadowRadius: 20,
+      elevation: 10,
+    },
+    accent: {
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.5,
-      shadowRadius: 16,
-      elevation: 6,
+      shadowRadius: 14,
+      elevation: 8,
     },
   },
 };

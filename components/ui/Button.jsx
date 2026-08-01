@@ -146,10 +146,14 @@ export function IconButton({ icon, onPress, accessibilityLabel, tone = 'muted', 
   );
 }
 
-/** Vurgu renginde yuvarlatılmış ikon kutusu — başlıklarda kimlik taşır. */
-export function IconTile({ icon, accent, size = 40, style }) {
-  const { accent: accentler, radius } = useTheme();
+/**
+ * Vurgu renginde yuvarlatılmış ikon kutusu — başlıklarda kimlik taşır.
+ * `filled` ile dolu vurgu rengi + beyaz ikon kullanılır (daha güçlü vurgu).
+ */
+export function IconTile({ icon, accent, size = 40, filled = false, style }) {
+  const { accent: accentler, radius, shadow } = useTheme();
   const vurgu = accentler[accent] ?? accentler.maas;
+
   return (
     <View
       style={[
@@ -157,14 +161,15 @@ export function IconTile({ icon, accent, size = 40, style }) {
           width: size,
           height: size,
           borderRadius: radius.md,
-          backgroundColor: vurgu.tint,
+          backgroundColor: filled ? vurgu.base : vurgu.tint,
           alignItems: 'center',
           justifyContent: 'center',
         },
+        filled ? [shadow.accent, { shadowColor: vurgu.base }] : null,
         style,
       ]}
     >
-      <Ionicons name={icon} size={size * 0.5} color={vurgu.base} />
+      <Ionicons name={icon} size={size * 0.5} color={filled ? vurgu.on : vurgu.base} />
     </View>
   );
 }

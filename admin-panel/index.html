@@ -319,6 +319,13 @@ const el = (etiket, sinif, metin) => {
   return dugum;
 };
 
+const KATEGORI_ETIKETLERI = {
+  hata: { ad: 'Hata', renk: 'var(--danger)', zemin: 'var(--danger-tint)' },
+  oneri: { ad: 'Öneri', renk: 'var(--accent)', zemin: 'var(--accent-tint)' },
+  soru: { ad: 'Soru', renk: 'var(--warning)', zemin: 'var(--warning-tint)' },
+  diger: { ad: 'Diğer', renk: 'var(--muted)', zemin: 'var(--surface-alt)' },
+};
+
 const tarihFormatla = (ts) => {
   if (!ts?.toDate) return '—';
   return ts.toDate().toLocaleString('tr-TR', {
@@ -437,13 +444,26 @@ function geriBildirimKarti(id, veri, silinmis) {
 
   const ust = el('div', 'kartUst');
   ust.append(kimlikBlogu(veri));
-  ust.append(
+
+  const rozetler = el('div');
+  rozetler.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+
+  const kategori = KATEGORI_ETIKETLERI[veri.kategori];
+  if (kategori) {
+    const kRozet = el('span', 'rozet', kategori.ad);
+    kRozet.style.background = kategori.zemin;
+    kRozet.style.color = kategori.renk;
+    rozetler.append(kRozet);
+  }
+
+  rozetler.append(
     el(
       'span',
       silinmis ? 'rozet silindi' : `rozet ${yanitlandi ? 'yanitlandi' : 'yeni'}`,
       silinmis ? 'Silindi' : yanitlandi ? 'Yanıtlandı' : 'Yeni'
     )
   );
+  ust.append(rozetler);
   kart.append(ust);
 
   kart.append(el('div', 'mesajMetni', veri.mesaj || ''));
@@ -623,7 +643,7 @@ const arama = $('aramaKutusu');
 
 function eslesiyorMu(veri, terim) {
   if (!terim) return true;
-  const hedef = `${veri.isim ?? ''} ${veri.soyisim ?? ''} ${veri.eposta ?? ''} ${veri.mesaj ?? ''}`
+  const hedef = `${veri.isim ?? ''} ${veri.soyisim ?? ''} ${veri.eposta ?? ''} ${veri.mesaj ?? ''} ${KATEGORI_ETIKETLERI[veri.kategori]?.ad ?? ''}`
     .toLocaleLowerCase('tr-TR');
   return hedef.includes(terim.toLocaleLowerCase('tr-TR'));
 }

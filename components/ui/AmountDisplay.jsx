@@ -48,30 +48,57 @@ export function AnimatedAmount({ value, style, variant = 'display', color, kesir
 }
 
 /**
- * Öne çıkan toplam kutusu — vurgu renginde tint zemin üzerinde büyük rakam.
+ * Öne çıkan toplam kutusu.
+ *
+ * Vurgu renginin DOLU hâli kullanılıyor (soluk tint değil): ekrandaki tek
+ * doygun renkli blok bu, dolayısıyla göz doğrudan toplama gidiyor.
  */
 export function TotalCard({ label, value, accent = 'maas', hint, right }) {
-  const { radius, spacing, accent: accentler } = useTheme();
+  const { radius, spacing, accent: accentler, shadow } = useTheme();
   const vurgu = accentler[accent] ?? accentler.maas;
 
   return (
     <View
-      style={{
-        backgroundColor: vurgu.tint,
-        borderRadius: radius.lg,
-        padding: spacing.lg,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.md,
-      }}
+      style={[
+        {
+          backgroundColor: vurgu.base,
+          borderRadius: radius.lg,
+          padding: spacing.xl,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          overflow: 'hidden',
+        },
+        shadow.accent,
+        { shadowColor: vurgu.base },
+      ]}
     >
+      {/* Sağ üstte hafif bir ışık halkası — düz bloğu canlandırır */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: -46,
+          right: -26,
+          width: 140,
+          height: 140,
+          borderRadius: 70,
+          backgroundColor: vurgu.on,
+          opacity: 0.1,
+        }}
+      />
+
       <View style={{ flex: 1 }}>
-        <Text variant="overline" color={vurgu.base} style={{ textTransform: 'uppercase' }}>
+        <Text
+          variant="overline"
+          color={vurgu.on}
+          style={{ textTransform: 'uppercase', opacity: 0.85 }}
+        >
           {label}
         </Text>
-        <AnimatedAmount value={value} color={vurgu.base} style={{ marginTop: spacing.xs }} />
+        <AnimatedAmount value={value} color={vurgu.on} style={{ marginTop: spacing.xs }} />
         {hint ? (
-          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
+          <Text variant="caption" color={vurgu.on} style={{ marginTop: spacing.xs, opacity: 0.8 }}>
             {hint}
           </Text>
         ) : null}

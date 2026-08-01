@@ -8,9 +8,9 @@ import {
   CardHeader,
   Divider,
   Field,
-  IconTile,
   PageHeader,
   Screen,
+  Stepper,
   Text,
   TotalCard,
 } from '../../components/ui';
@@ -100,32 +100,19 @@ export default function HizliEkrani() {
         <CardHeader title="Adetler" />
 
         {PRIM_KALEMLERI.map((kalem, sira) => (
-          <View
-            key={kalem.key}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.md,
-              paddingVertical: spacing.sm,
-              borderTopWidth: sira > 0 ? 0 : 0,
-            }}
-          >
-            <IconTile icon={kalem.ikon} accent={ACCENT} size={32} />
-            <View style={{ flex: 1 }}>
-              <Text variant="bodyStrong">{kalem.etiket}</Text>
-              <Text variant="caption" tone="faint">
-                %{(hesap.kalemler[sira].oran * 100).toLocaleString('tr-TR')}
-                {hesap.anaMaas > 0 ? ` · ${paraKisa(hesap.kalemler[sira].birim)} TL` : ''}
-              </Text>
-            </View>
-            <Field
-              value={adetler[kalem.key]}
-              onChangeText={(deger) => adetDegistir(kalem.key, deger)}
-              keyboardType="number-pad"
-              placeholder="0"
+          <View key={kalem.key}>
+            {sira > 0 ? <Divider style={{ marginVertical: spacing.xs }} /> : null}
+            <Stepper
+              label={kalem.etiket}
+              ikon={kalem.ikon}
               accent={ACCENT}
-              style={{ width: 78, marginBottom: 0 }}
-              inputStyle={{ textAlign: 'center', fontVariant: ['tabular-nums'] }}
+              value={adetler[kalem.key]}
+              onChange={(deger) => adetDegistir(kalem.key, deger)}
+              yardim={
+                hesap.anaMaas > 0
+                  ? `%${(hesap.kalemler[sira].oran * 100).toLocaleString('tr-TR')} · birim ${paraKisa(hesap.kalemler[sira].birim)} TL`
+                  : `%${(hesap.kalemler[sira].oran * 100).toLocaleString('tr-TR')}`
+              }
             />
           </View>
         ))}
