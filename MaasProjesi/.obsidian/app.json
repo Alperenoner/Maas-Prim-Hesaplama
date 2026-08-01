@@ -1,1 +1,6 @@
-{}
+{
+  "attachmentFolderPath": "ekler",
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "alwaysUpdateLinks": true
+}

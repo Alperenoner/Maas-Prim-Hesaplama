@@ -41,6 +41,10 @@ yarn-error.*
 # yönetim paneli yerel yapılandırması
 admin-panel/config.js
 
+# Obsidian: kişisel arayüz durumu (ayarlar commit edilir, pencere düzeni edilmez)
+MaasProjesi/.obsidian/workspace.json
+MaasProjesi/.obsidian/workspace-mobile.json
+
 # python sanal ortamı (yerel araçlar)
 .venv/
 

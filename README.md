@@ -7,11 +7,18 @@ kullanıcının kendi hesabına yedekler.
 **Expo SDK 57 · React Native 0.86 · React 19 · Firebase 12 · iOS / Android / Web**
 
 <p align="center">
-  <img src="docs/demo/screens/01-maas-acik.png" width="24%" alt="Maaş ekranı" />
-  <img src="docs/demo/screens/04-gecmis-acik.png" width="24%" alt="Geçmiş ekranı" />
-  <img src="docs/demo/screens/02-harcamalar-acik.png" width="24%" alt="Harcamalar ekranı" />
-  <img src="docs/demo/screens/08-maas-koyu.png" width="24%" alt="Koyu tema" />
+  <img src="docs/demo/screens/01-maas-acik.png" width="23%" alt="Maaş ekranı" />
+  <img src="docs/demo/screens/04-gecmis-acik.png" width="23%" alt="Geçmiş ekranı" />
+  <img src="docs/demo/screens/02-harcamalar-acik.png" width="23%" alt="Harcamalar ekranı" />
+  <img src="docs/demo/screens/06-geribildirim-acik.png" width="23%" alt="Geri bildirim ekranı" />
 </p>
+<p align="center">
+  <img src="docs/demo/screens/08-maas-koyu.png" width="23%" alt="Maaş — koyu tema" />
+  <img src="docs/demo/screens/10-gecmis-koyu.png" width="23%" alt="Geçmiş — koyu tema" />
+  <img src="docs/demo/screens/09-harcamalar-koyu.png" width="23%" alt="Harcamalar — koyu tema" />
+  <img src="docs/demo/screens/13-geribildirim-koyu.png" width="23%" alt="Geri bildirim — koyu tema" />
+</p>
+<p align="center"><sub>Üstte açık, altta koyu tema. Tüm görüntüler <code>docs/demo/capture.mjs</code> ile gerçek derlemeden otomatik üretildi.</sub></p>
 
 ---
 
@@ -27,6 +34,7 @@ kullanıcının kendi hesabına yedekler.
 - [Dağıtım](#dağıtım)
 - [Ekran görüntülerini yenileme](#ekran-görüntülerini-yenileme)
 - [Doğrulama durumu](#doğrulama-durumu)
+- [Proje kasası (Obsidian)](#proje-kasası-obsidian)
 
 ---
 
@@ -228,3 +236,36 @@ node docs/demo/capture.mjs --skip-build   # mevcut dist/ ile yakalar
 
 Teknik dokümanın tamamı için: `docs/index.html`
 (`python3 -m http.server 8080 --directory docs` ile açılabilir).
+
+## Proje kasası (Obsidian)
+
+`MaasProjesi/` klasörü bir **Obsidian kasasıdır** — projenin tüm mimarisi,
+kararları ve yaşanmış sorunları birbirine bağlı notlar hâlinde burada.
+
+```
+MaasProjesi/
+├── 00 Başlangıç.md          giriş noktası (MOC)
+├── Genel Bakış/             proje, teknoloji yığını, sürüm geçmişi
+├── Mimari/                  katmanlar, yönlendirme, durum, veri akışı
+├── Ekranlar/                yedi ekranın ayrıntısı
+├── Tasarım Sistemi/         renk, tipografi, bileşenler
+├── İş Mantığı/              prim kuralı, veri modeli, göç
+├── Güvenlik/                kurallar, kimlik, kapatılan açıklar
+├── Altyapı/                 Firebase, dağıtım, panel
+├── Kararlar/                7 mimari karar kaydı (ADR)
+├── Sorun Giderme/           gerçekten yaşanmış sorunlar
+└── ekler/                   13 ekran görüntüsü
+```
+
+**43 not**, sıfır kırık bağlantı. Mermaid diyagramları ve gömülü görsellerle.
+
+Obsidian ile açmak için: *Open folder as vault* → `MaasProjesi/` klasörünü seç.
+Obsidian olmadan da okunabilir — hepsi düz Markdown.
+
+Öne çıkan notlar:
+
+| Not | İçerik |
+|---|---|
+| `Kararlar/` | Neden `expo-crypto` kaldırıldı, neden EmailJS yerine `mailto`, React Compiler tuzağı |
+| `Güvenlik/Kapatılan Açıklar` | 7 açığın tamamı, etkileri ve çözümleri |
+| `Sorun Giderme/` | OTA neden gelmez, Metro önbelleği tuzağı, Android gölgeleri |
