@@ -26,6 +26,28 @@ kullanıcının kendi hesabına yedekler.
 - [Yönetim paneli](#yönetim-paneli)
 - [Dağıtım](#dağıtım)
 - [Ekran görüntülerini yenileme](#ekran-görüntülerini-yenileme)
+- [Doğrulama durumu](#doğrulama-durumu)
+
+---
+
+## Doğrulama durumu
+
+Bu depodaki **tüm ekran görüntüleri gerçek çıktılardır** — tasarım maketi değil.
+`docs/demo/capture.mjs`, web sürümünü derleyip başsız Chrome'da açar, beklenen
+içerik DOM'a gelene kadar bekler, arayüzle etkileşime girer ve kareyi alır;
+aynı çalıştırmada konsol istisnalarını da toplar.
+
+| Kontrol | Durum |
+|---|---|
+| TypeScript (`npm run typecheck`) | hatasız |
+| ESLint (`npm run lint`) | hatasız |
+| Web derlemesi (`npm run build:web`) | başarılı |
+| Tarayıcıda açılan ekran | 12 / 12, konsol hatası yok |
+
+**Henüz yapılmadı:** gerçek iOS/Android cihazda çalıştırma, Firestore
+kurallarının canlı ortamda denenmesi ve bulut yedeğinin iki cihaz arasında
+uçtan uca test edilmesi. Kurallar dağıtıldıktan sonra bir cihazda hesap açıp
+ikincisinde giriş yaparak doğrulanmalıdır.
 
 ---
 
@@ -73,13 +95,19 @@ ekranları da, geçmiş kayıtların kırılımı da aynı fonksiyondan beslenir
 ## Kurulum
 
 ```bash
-git clone <repo-url>
-cd MaasProjesi
+git clone https://github.com/Alperenoner/Maas-Prim-Hesaplama.git
+cd Maas-Prim-Hesaplama
 npm install
 
-cp .env.example .env      # Firebase değerlerini doldurun
+cp .env.example .env                                   # mobil uygulama
+cp admin-panel/config.example.js admin-panel/config.js # yönetim paneli
+# her iki dosyayı da kendi Firebase değerlerinizle doldurun
+
 npx expo start
 ```
+
+> Depoda `.env` ve `admin-panel/config.js` **bulunmaz**. Uygulamayı çalıştırmak
+> için kendi Firebase projenizi oluşturup bu iki dosyayı doldurmanız gerekir.
 
 `.env` içindeki değerler Firebase Console → *Proje ayarları → Uygulamalarınız*
 bölümünden alınır. Bunlar gizli anahtar değildir (istemci yapılandırması tasarımı

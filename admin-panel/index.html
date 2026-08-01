@@ -286,33 +286,14 @@ import {
 /* ------------------------------------------------------------------ *
  * Yapılandırma
  *
- * Firebase istemci yapılandırması gizli değildir; verinin korunması
- * `firestore.rules` ile sağlanır. Panel yalnızca kural dosyasında yazılı
- * yönetici e-postasıyla giriş yapıldığında veri görebilir.
- * ------------------------------------------------------------------ */
-const firebaseConfig = {
-  apiKey: 'KALDIRILDI_FIREBASE_API_KEY',
-  authDomain: 'maas-primtakip.firebaseapp.com',
-  projectId: 'maas-primtakip',
-  storageBucket: 'maas-primtakip.firebasestorage.app',
-  messagingSenderId: '589781739238',
-  appId: '1:589781739238:web:0512b7d1b174550ae87d27',
-};
-
-/*
- * EmailJS yanıt gönderimi.
+ * Firebase ve EmailJS değerleri `config.js` dosyasından okunur; bu dosya
+ * sürüm kontrolüne dahil değildir. Şablon için `config.example.js`.
  *
- * GÜVENLİK NOTU: EmailJS istemci tarafında çalışır ve bu anahtarlar sayfanın
- * kaynağından okunabilir. Şablonun üçüncü taraflarca kullanılmasını engellemek
- * için EmailJS panelinden bu alan adının allowlist'e eklenmesi (Account >
- * Security > Allowed origins) ZORUNLUDUR. Aksi hâlde anahtarı ele geçiren biri
- * sizin kotanızdan e-posta gönderebilir.
- */
-const EMAILJS = {
-  serviceId: 'KALDIRILDI_EMAILJS_SERVICE_ID',
-  templateId: 'KALDIRILDI_EMAILJS_TEMPLATE_ID',
-  publicKey: 'KALDIRILDI_EMAILJS_PUBLIC_KEY',
-};
+ * Firebase istemci yapılandırması gizli değildir — verinin korunması
+ * `firestore.rules` ile sağlanır. Panel, kural dosyasında yazılı yönetici
+ * e-postası dışında bir hesapla giriş yapıldığında hiçbir veri gösteremez.
+ * ------------------------------------------------------------------ */
+import { firebaseConfig, EMAILJS } from './config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
