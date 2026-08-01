@@ -1,154 +1,249 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useContext, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { TAB_RENKLERI, ThemeContext } from './_layout';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-const RENK = TAB_RENKLERI.gecmis;
+import {
+  AmountRow,
+  Badge,
+  BarChart,
+  Card,
+  CardHeader,
+  Divider,
+  EmptyState,
+  IconTile,
+  PageHeader,
+  Screen,
+  SectionLabel,
+  Text,
+} from '../../components/ui';
+import { ayEtiketindenYil, paraKisa } from '../../lib/format';
+import { PRIM_KALEMLERI } from '../../lib/prim';
+import { maasKayitlariniOku } from '../../lib/storage';
+import { useTheme } from '../../theme';
 
-const DETAY_SATIRLARI = [
-  { adetKey: 'kurulumAdet', paraKey: 'kurulumPara', label: 'Kurulum', icon: 'construct' },
-  { adetKey: 'haftaIciAdet', paraKey: 'haftaIciPara', label: 'H.İçi Nöbet', icon: 'briefcase' },
-  { adetKey: 'haftaSonuAdet', paraKey: 'haftaSonuPara', label: 'H.Sonu Nöbet', icon: 'calendar' },
-  { adetKey: 'aracAdet', paraKey: 'aracPara', label: 'Araç Nöbeti', icon: 'car-sport' },
-];
+const ACCENT = 'gecmis';
 
-export default function HistoryScreen() {
-  const [gecmis, setGecmis] = useState([]);
-  const { isDark } = useContext(ThemeContext);
 
-  const bg = isDark ? '#121212' : '#f2f4f8';
-  const text = isDark ? '#ffffff' : '#1f2430';
-  const cardBg = isDark ? '#1e1e1e' : '#ffffff';
-  const borderColor = isDark ? '#3a3a3a' : '#e6e8ee';
-  const mutedText = isDark ? '#9aa0aa' : '#8a8f9a';
-
-  useFocusEffect(useCallback(() => {
-    AsyncStorage.getItem('maasKayitlari').then(res => {
-      if (res) setGecmis(JSON.parse(res));
-    });
-  }, []));
-
-  const suAnkiYil = new Date().getFullYear().toString();
-  const yillikToplam = gecmis
-    .filter(item => item.ay && item.ay.endsWith(suAnkiYil))
-    .reduce((toplam, item) => toplam + (item.hamToplam || 0), 0);
-
-  const grafikVerisi = gecmis.slice(0, 6).slice().reverse();
-  const maxDeger = Math.max(1, ...grafikVerisi.map(item => item.hamToplam || 0));
+/**
+ * Seçili ayın kalem kırılımı.
+ *
+ * Ayrı bir bileşen olmasının nedeni yalnızca düzen değil: React Compiler,
+ * koşullu render edilen JSX içindeki `secilen.ay` gibi erişimleri memo
+ * bağımlılığına çıkarıp koşuldan BAĞIMSIZ olarak çözümlüyor ve `secilen`
+ * null olduğunda çalışma zamanı hatası veriyordu. Prop olarak geçirilen
+ * değer bileşen içinde asla null olmadığı için bu sorun ortadan kalkıyor.
+ */
+function AyKirilimi({ kayit }) {
+  const { spacing } = useTheme();
 
   return (
-    <View style={{ flex: 1, backgroundColor: bg, paddingTop: 10, paddingHorizontal: 16 }}>
-      <View style={[styles.hero, { backgroundColor: RENK }]}>
-        <View style={styles.heroIconKutu}>
-          <Ionicons name="time" size={22} color="#fff" />
-        </View>
-        <Text style={styles.heroBaslik}>Tüm Geçmiş Aylar</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
-        {gecmis.length > 0 && (
-          <View style={[styles.ozetKart, { backgroundColor: cardBg, borderColor: borderColor }]}>
-            <View style={styles.ozetUst}>
-              <Text style={[styles.ozetBaslik, { color: mutedText }]}>{suAnkiYil} Yılı Toplam Kazanç</Text>
-              <Text style={[styles.ozetDeger, { color: RENK }]}>{yillikToplam.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL</Text>
-            </View>
-
-            {grafikVerisi.length > 1 && (
-              <View style={styles.grafikAlani}>
-                {grafikVerisi.map((item, idx) => (
-                  <View key={item.id || idx} style={styles.barKolon}>
-                    <View style={styles.barGovdeArka}>
-                      <View style={[styles.barGovde, { height: `${Math.max(6, ((item.hamToplam || 0) / maxDeger) * 100)}%`, backgroundColor: RENK }]} />
-                    </View>
-                    <Text style={[styles.barEtiket, { color: mutedText }]} numberOfLines={1}>
-                      {item.ay ? item.ay.split(' ')[0].slice(0, 3) : ''}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {gecmis.length === 0 && (
-          <View style={{ alignItems: 'center', marginTop: 30 }}>
-            <Ionicons name="archive-outline" size={36} color={mutedText} />
-            <Text style={{ color: mutedText, textAlign: 'center', fontStyle: 'italic', marginTop: 10 }}>Henüz geçmişte kaydedilmiş bir ay yok.</Text>
-          </View>
-        )}
-
-        {gecmis.map((item) => (
-          <View key={item.id} style={[styles.kart, { backgroundColor: cardBg, borderColor: borderColor }]}>
-            <View style={styles.baslikSatiri}>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: text }}>{item.ay}</Text>
-              <View style={{ backgroundColor: RENK, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{item.toplam} TL</Text>
-              </View>
-            </View>
-
-            <View style={styles.detayKutusu}>
-              {DETAY_SATIRLARI.map(({ adetKey, paraKey, label, icon }) => (
-                <View key={label} style={styles.detaySatir}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Ionicons name={icon} size={14} color={RENK} style={{ marginRight: 7 }} />
-                    <Text style={{ color: mutedText, fontSize: 13, fontWeight: '600' }}>{label}</Text>
-                  </View>
-                  <Text style={{ color: text, fontSize: 13, fontWeight: '700' }}>
-                    {item[adetKey] || 0} İşlem <Text style={{ color: RENK }}>(+{item[paraKey] ? item[paraKey].toLocaleString('tr-TR') : 0} TL)</Text>
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+    <Animated.View entering={FadeInDown.duration(240)} style={{ marginTop: spacing.md }}>
+      <Card>
+        <CardHeader
+          title={kayit.ay}
+          subtitle="Kalem kırılımı"
+          right={<Badge label={`${paraKisa(kayit.hamToplam)} TL`} accent={ACCENT} />}
+        />
+        <AmountRow label="Ana maaş" value={kayit.hamMaas} muted />
+        {PRIM_KALEMLERI.map((kalem) => (
+          <AmountRow
+            key={kalem.key}
+            label={`${kalem.etiket} × ${kayit[kalem.adetAlani] ?? 0}`}
+            value={kayit[kalem.paraAlani] ?? 0}
+            icon={<IconTile icon={kalem.ikon} accent={ACCENT} size={26} />}
+            muted={(kayit[kalem.paraAlani] ?? 0) === 0}
+          />
         ))}
-      </ScrollView>
-    </View>
+        <Divider />
+        <AmountRow label="Toplam hak ediş" value={kayit.hamToplam} accent={ACCENT} strong />
+      </Card>
+    </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroIconKutu: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  heroBaslik: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  kart: {
-    borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
-  },
-  baslikSatiri: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(150,150,150,0.25)', paddingBottom: 10, marginBottom: 10 },
-  detayKutusu: { gap: 8 },
-  detaySatir: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ozetKart: {
-    borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2,
-  },
-  ozetUst: { alignItems: 'center', marginBottom: 14 },
-  ozetBaslik: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  ozetDeger: { fontSize: 26, fontWeight: '800', marginTop: 4 },
-  grafikAlani: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', height: 110, borderTopWidth: 1, borderTopColor: 'rgba(150,150,150,0.2)', paddingTop: 10 },
-  barKolon: { alignItems: 'center', flex: 1 },
-  barGovdeArka: { height: 80, width: 18, justifyContent: 'flex-end' },
-  barGovde: { width: '100%', borderRadius: 6, minHeight: 6 },
-  barEtiket: { fontSize: 10, fontWeight: '600', marginTop: 6 },
-});
+export default function GecmisEkrani() {
+  const { color, spacing, accent } = useTheme();
+  const vurgu = accent[ACCENT];
+
+  const [kayitlar, setKayitlar] = useState([]);
+  const [secilenId, setSecilenId] = useState(null);
+  const [yukleniyor, setYukleniyor] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let iptal = false;
+      maasKayitlariniOku().then((liste) => {
+        if (iptal) return;
+        setKayitlar(liste);
+        setYukleniyor(false);
+      });
+      return () => {
+        iptal = true;
+      };
+    }, [])
+  );
+
+  const buYil = new Date().getFullYear();
+
+  const ozet = useMemo(() => {
+    const buYilinKayitlari = kayitlar.filter((k) => ayEtiketindenYil(k.ay) === buYil);
+    const yillikToplam = buYilinKayitlari.reduce((t, k) => t + (k.hamToplam || 0), 0);
+    const yillikPrim = buYilinKayitlari.reduce((toplam, kayit) => {
+      const primler = PRIM_KALEMLERI.reduce((alt, kalem) => alt + (kayit[kalem.paraAlani] || 0), 0);
+      return toplam + primler;
+    }, 0);
+
+    return {
+      aySayisi: buYilinKayitlari.length,
+      yillikToplam,
+      yillikPrim,
+      ortalama: buYilinKayitlari.length > 0 ? yillikToplam / buYilinKayitlari.length : 0,
+      enIyiAy:
+        buYilinKayitlari
+          .reduce((en, k) => ((k.hamToplam || 0) > (en?.hamToplam || 0) ? k : en), null)
+          ?.ay?.split(' ')[0] ?? null,
+    };
+  }, [kayitlar, buYil]);
+
+  /** Grafik en eskiden yeniye okunur; liste ise yeniden eskiye. */
+  const grafikVerisi = useMemo(
+    () =>
+      kayitlar
+        .slice(0, 6)
+        .reverse()
+        .map((kayit) => ({
+          id: kayit.id,
+          deger: kayit.hamToplam || 0,
+          etiket: (kayit.ay || '').split(' ')[0].slice(0, 3),
+        })),
+    [kayitlar]
+  );
+
+  const secilen = kayitlar.find((k) => k.id === secilenId) ?? kayitlar[0] ?? null;
+
+  if (!yukleniyor && kayitlar.length === 0) {
+    return (
+      <Screen>
+        <PageHeader title="Geçmiş" subtitle="Kaydedilmiş aylar" icon="time" accent={ACCENT} />
+        <Card padded={false}>
+          <EmptyState
+            icon="archive-outline"
+            accent={ACCENT}
+            title="Arşiv boş"
+            description="“Maaş” sekmesinden bir ay kaydettiğinde geçmiş burada birikmeye başlar."
+          />
+        </Card>
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <PageHeader
+        title="Geçmiş"
+        subtitle={`${kayitlar.length} ay kayıtlı`}
+        icon="time"
+        accent={ACCENT}
+      />
+
+      {/* ---------------- Yıllık özet ---------------- */}
+      <Card>
+        <CardHeader
+          title={`${buYil} özeti`}
+          subtitle={`${ozet.aySayisi} ay kaydedildi`}
+          right={
+            ozet.enIyiAy ? <Badge label={`En iyi: ${ozet.enIyiAy}`} accent={ACCENT} /> : null
+          }
+        />
+
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          {[
+            { etiket: 'Toplam kazanç', deger: ozet.yillikToplam, vurgulu: true },
+            { etiket: 'Toplam prim', deger: ozet.yillikPrim },
+            { etiket: 'Aylık ortalama', deger: ozet.ortalama },
+          ].map((kutu) => (
+            <View key={kutu.etiket} style={{ flex: 1 }}>
+              <Text variant="caption" tone="faint" numberOfLines={1}>
+                {kutu.etiket}
+              </Text>
+              <Text
+                variant="subheading"
+                color={kutu.vurgulu ? vurgu.base : color.text}
+                style={{ marginTop: 2, fontVariant: ['tabular-nums'] }}
+              >
+                {paraKisa(kutu.deger)}
+              </Text>
+              <Text variant="caption" tone="faint">
+                TL
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {grafikVerisi.length > 1 ? (
+          <>
+            <Divider style={{ marginTop: spacing.lg }} />
+            <View style={{ marginBottom: spacing.sm }}>
+              <Text variant="label" tone="muted">
+                Son {grafikVerisi.length} ay
+              </Text>
+              <Text variant="caption" tone="faint">
+                Bir sütuna dokunarak o ayın kırılımını görebilirsin
+              </Text>
+            </View>
+            <BarChart
+              data={grafikVerisi}
+              accent={ACCENT}
+              selectedId={secilen?.id}
+              onSelect={(nokta) => setSecilenId(nokta.id)}
+            />
+          </>
+        ) : null}
+      </Card>
+
+      {/* ---------------- Seçili ay kırılımı ---------------- */}
+      {secilen ? <AyKirilimi kayit={secilen} /> : null}
+
+      {/* ---------------- Tüm aylar ---------------- */}
+      <SectionLabel label="Tüm aylar" />
+
+      <Card padded={false}>
+        {kayitlar.map((kayit, sira) => {
+          const seciliMi = kayit.id === secilen?.id;
+          return (
+            <View key={kayit.id}>
+              {sira > 0 ? <Divider style={{ marginVertical: 0 }} /> : null}
+              <Pressable
+                onPress={() => setSecilenId(kayit.id)}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  padding: spacing.lg,
+                  backgroundColor: pressed || seciliMi ? vurgu.tint : 'transparent',
+                })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyStrong" color={seciliMi ? vurgu.base : color.text}>
+                    {kayit.ay}
+                  </Text>
+                  <Text variant="caption" tone="faint" style={{ marginTop: 2 }}>
+                    {kayit.ozet || 'Kalem girilmemiş'}
+                  </Text>
+                </View>
+                <Text
+                  variant="bodyStrong"
+                  color={seciliMi ? vurgu.base : color.textMuted}
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  {paraKisa(kayit.hamToplam)} TL
+                </Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </Card>
+    </Screen>
+  );
+}

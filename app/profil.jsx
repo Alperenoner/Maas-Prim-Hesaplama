@@ -1,157 +1,352 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
-import { db } from '../firebaseConfig';
+import { Pressable, View } from 'react-native';
 
-const RENK = '#4F46E5';
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  CardHeader,
+  Divider,
+  Field,
+  IconButton,
+  PageHeader,
+  Screen,
+  Sheet,
+  SheetAction,
+  Text,
+} from '../components/ui';
+import { paraKisa } from '../lib/format';
+import {
+  harcamalariOku,
+  maasKayitlariniOku,
+  profilOku,
+  profilYaz,
+  yerelVeriyiTemizle,
+} from '../lib/storage';
+import {
+  cikisYap,
+  hatayiCevir,
+  hesapOlustur,
+  sifreSifirlamaGonder,
+  useOturum,
+} from '../services/auth';
+import { yedegeYaz } from '../services/backup';
+import { profiliSenkronla } from '../services/users';
+import { useTheme } from '../theme';
 
-export default function ProfilScreen() {
-  const isDark = useColorScheme() === 'dark';
+const ACCENT = 'maas';
+const EPOSTA_DESENI = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SIFRE_MIN = 6;
+
+export default function ProfilEkrani() {
+  const { spacing, radius, accent } = useTheme();
+  const vurgu = accent[ACCENT];
   const router = useRouter();
+  const { yedekAcik } = useOturum();
 
   const [isim, setIsim] = useState('');
   const [soyisim, setSoyisim] = useState('');
   const [eposta, setEposta] = useState('');
-  const [hata, setHata] = useState('');
+  const [sifre, setSifre] = useState('');
+  const [hatalar, setHatalar] = useState({});
   const [durum, setDurum] = useState(null);
-  const [yukleniyor, setYukleniyor] = useState(false);
-  const [yukleniyorProfil, setYukleniyorProfil] = useState(true);
-
-  const bg = isDark ? '#121212' : '#f2f4f8';
-  const text = isDark ? '#ffffff' : '#1f2430';
-  const cardBg = isDark ? '#1e1e1e' : '#ffffff';
-  const inputBg = isDark ? '#2c2c2c' : '#f7f8fb';
-  const borderColor = isDark ? '#3a3a3a' : '#e6e8ee';
-  const mutedText = isDark ? '#9aa0aa' : '#8a8f9a';
+  const [kaydediliyor, setKaydediliyor] = useState(false);
+  const [hesapAcilyor, setHesapAciliyor] = useState(false);
+  const [istatistik, setIstatistik] = useState({ ay: 0, harcama: 0, toplam: 0 });
+  const [cikisPaneli, setCikisPaneli] = useState(false);
+  const [hazir, setHazir] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('kullaniciProfili').then(veri => {
-      if (veri) {
-        const profil = JSON.parse(veri);
-        setIsim(profil.isim || '');
-        setSoyisim(profil.soyisim || '');
-        setEposta(profil.eposta || '');
+    (async () => {
+      const [profil, maaslar, harcamalar] = await Promise.all([
+        profilOku(),
+        maasKayitlariniOku(),
+        harcamalariOku(),
+      ]);
+
+      if (profil) {
+        setIsim(profil.isim);
+        setSoyisim(profil.soyisim);
+        setEposta(profil.eposta);
       }
-      setYukleniyorProfil(false);
-    });
+      setIstatistik({
+        ay: maaslar.length,
+        harcama: harcamalar.length,
+        toplam: maaslar.reduce((t, k) => t + (k.hamToplam || 0), 0),
+      });
+      setHazir(true);
+    })();
   }, []);
 
-  const epostaGecerliMi = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(eposta.trim());
+  const profilDogrula = () => {
+    const yeni = {};
+    if (!isim.trim()) yeni.isim = 'İsim gerekli.';
+    if (!soyisim.trim()) yeni.soyisim = 'Soyisim gerekli.';
+    if (!EPOSTA_DESENI.test(eposta.trim())) yeni.eposta = 'Geçerli bir e-posta girin.';
+    setHatalar(yeni);
+    return Object.keys(yeni).length === 0;
+  };
 
   const kaydet = async () => {
-    if (!isim.trim() || !soyisim.trim()) { setHata('Lütfen isim ve soyisminizi girin.'); setDurum(null); return; }
-    if (!epostaGecerliMi) { setHata('Lütfen geçerli bir e-posta adresi girin.'); setDurum(null); return; }
+    setDurum(null);
+    if (!profilDogrula()) return;
 
-    setHata('');
-    setYukleniyor(true);
-    const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim() };
-
+    setKaydediliyor(true);
     try {
-      await AsyncStorage.setItem('kullaniciProfili', JSON.stringify(profil));
-
-      const docId = await AsyncStorage.getItem('kullaniciDocId');
-      if (docId) {
-        await updateDoc(doc(db, 'kullanicilar', docId), profil);
-      } else {
-        const belge = await addDoc(collection(db, 'kullanicilar'), {
-          ...profil,
-          kayitTarihi: serverTimestamp(),
-          platform: Platform.OS,
-        });
-        await AsyncStorage.setItem('kullaniciDocId', belge.id);
-      }
-      setDurum('basarili');
-    } catch (e) {
-      console.log('Profil güncelleme hatası:', e);
-      setDurum('hata');
+      const profil = await profilYaz({ isim, soyisim, eposta });
+      await profiliSenkronla(profil);
+      setDurum({ tone: 'success', mesaj: 'Bilgilerin güncellendi.' });
+    } catch (hata) {
+      setDurum({ tone: 'danger', mesaj: hatayiCevir(hata) });
     } finally {
-      setYukleniyor(false);
+      setKaydediliyor(false);
     }
   };
 
-  if (yukleniyorProfil) {
-    return (
-      <View style={[styles.container, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={RENK} />
-      </View>
-    );
-  }
+  const yedeklemeyiAc = async () => {
+    setDurum(null);
+    const yeni = {};
+    if (!EPOSTA_DESENI.test(eposta.trim())) yeni.eposta = 'Geçerli bir e-posta girin.';
+    if (sifre.length < SIFRE_MIN) yeni.sifre = `Şifre en az ${SIFRE_MIN} karakter olmalı.`;
+    setHatalar(yeni);
+    if (Object.keys(yeni).length > 0) return;
+
+    setHesapAciliyor(true);
+    try {
+      const profil = { isim: isim.trim(), soyisim: soyisim.trim(), eposta: eposta.trim() };
+      await hesapOlustur({ ...profil, sifre });
+      await profilYaz(profil);
+      await profiliSenkronla(profil);
+
+      const [maaslar, harcamalar] = await Promise.all([maasKayitlariniOku(), harcamalariOku()]);
+      await yedegeYaz({ maasKayitlari: maaslar, harcamaKayitlari: harcamalar });
+
+      setSifre('');
+      setDurum({ tone: 'success', mesaj: 'Bulut yedeği açıldı ve mevcut verilerin yüklendi.' });
+    } catch (hata) {
+      setDurum({ tone: 'danger', mesaj: hatayiCevir(hata) });
+    } finally {
+      setHesapAciliyor(false);
+    }
+  };
+
+  const sifreSifirla = async () => {
+    try {
+      await sifreSifirlamaGonder(eposta);
+      setDurum({ tone: 'success', mesaj: 'Şifre sıfırlama bağlantısı e-postana gönderildi.' });
+    } catch (hata) {
+      setDurum({ tone: 'danger', mesaj: hatayiCevir(hata) });
+    }
+  };
+
+  const cikisYapVeTemizle = async () => {
+    setCikisPaneli(false);
+    await yerelVeriyiTemizle();
+    await cikisYap();
+    router.replace('/kayit');
+  };
+
+  if (!hazir) return <Screen />;
 
   return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={[styles.hero, { backgroundColor: RENK }]}>
-        <View style={styles.heroIconKutu}>
-          <Ionicons name="person-circle" size={26} color="#fff" />
+    <Screen edges={{ top: true, bottom: true }}>
+      <PageHeader
+        title="Profil"
+        subtitle={yedekAcik ? 'Hesabın bulut yedeğine bağlı' : 'Yalnızca bu cihazda'}
+        icon="person-circle"
+        accent={ACCENT}
+        right={<IconButton icon="close" accessibilityLabel="Kapat" onPress={() => router.back()} />}
+      />
+
+      {durum ? (
+        <Banner tone={durum.tone} message={durum.mesaj} style={{ marginBottom: spacing.lg }} />
+      ) : null}
+
+      {/* ---------------- Özet ---------------- */}
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: radius.lg,
+              backgroundColor: vurgu.tint,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text variant="heading" color={vurgu.base}>
+              {(isim[0] ?? '?').toLocaleUpperCase('tr-TR')}
+              {(soyisim[0] ?? '').toLocaleUpperCase('tr-TR')}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="heading" numberOfLines={1}>
+              {[isim, soyisim].filter(Boolean).join(' ') || 'İsimsiz kullanıcı'}
+            </Text>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              {eposta || 'e-posta yok'}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.heroBaslik}>Profilim</Text>
-        <Text style={styles.heroAlt}>Bilgilerini buradan güncelleyebilirsin</Text>
-      </View>
 
-      <View style={[styles.card, { backgroundColor: cardBg, borderColor: borderColor }]}>
-        <Text style={[styles.etiket, { color: text }]}>İsim</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]}
-          value={isim}
-          onChangeText={setIsim}
-          placeholder="Örn: Alperen"
-          placeholderTextColor={mutedText}
-        />
+        <Divider />
 
-        <Text style={[styles.etiket, { color: text }]}>Soyisim</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]}
-          value={soyisim}
-          onChangeText={setSoyisim}
-          placeholder="Örn: Öner"
-          placeholderTextColor={mutedText}
-        />
+        <View style={{ flexDirection: 'row' }}>
+          {[
+            { etiket: 'Kayıtlı ay', deger: String(istatistik.ay) },
+            { etiket: 'Harcama', deger: String(istatistik.harcama) },
+            { etiket: 'Toplam kazanç', deger: `${paraKisa(istatistik.toplam)} TL` },
+          ].map((kutu) => (
+            <View key={kutu.etiket} style={{ flex: 1 }}>
+              <Text variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>
+                {kutu.deger}
+              </Text>
+              <Text variant="caption" tone="faint">
+                {kutu.etiket}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
 
-        <Text style={[styles.etiket, { color: text }]}>E-posta</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]}
+      {/* ---------------- Bilgiler ---------------- */}
+      <Card style={{ marginTop: spacing.md }}>
+        <CardHeader title="Bilgilerim" />
+
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          <Field
+            label="İsim"
+            value={isim}
+            onChangeText={setIsim}
+            accent={ACCENT}
+            hata={hatalar.isim}
+            autoCapitalize="words"
+            style={{ flex: 1 }}
+          />
+          <Field
+            label="Soyisim"
+            value={soyisim}
+            onChangeText={setSoyisim}
+            accent={ACCENT}
+            hata={hatalar.soyisim}
+            autoCapitalize="words"
+            style={{ flex: 1 }}
+          />
+        </View>
+
+        <Field
+          label="E-posta"
           value={eposta}
           onChangeText={setEposta}
-          placeholder="ornek@mail.com"
-          placeholderTextColor={mutedText}
           keyboardType="email-address"
           autoCapitalize="none"
+          accent={ACCENT}
+          ikon="mail-outline"
+          hata={hatalar.eposta}
+          editable={!yedekAcik}
+          ipucu={yedekAcik ? 'Hesaba bağlı e-posta değiştirilemez.' : undefined}
         />
 
-        {hata ? <Text style={styles.hataYazisi}>{hata}</Text> : null}
-        {durum === 'basarili' && <Text style={styles.basariYazisi}>✓ Bilgilerin güncellendi.</Text>}
-        {durum === 'hata' && <Text style={styles.hataYazisi}>Güncellenirken bir sorun oluştu, tekrar dene.</Text>}
+        <Button
+          label="Kaydet"
+          icon="checkmark-circle-outline"
+          accent={ACCENT}
+          loading={kaydediliyor}
+          onPress={kaydet}
+        />
+      </Card>
 
-        <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }]} onPress={kaydet} disabled={yukleniyor}>
-          {yukleniyor ? (
-            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
-          ) : (
-            <Ionicons name="save" size={18} color="#fff" style={{ marginRight: 8 }} />
-          )}
-          <Text style={styles.butonYazi}>{yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}</Text>
-        </TouchableOpacity>
+      {/* ---------------- Yedekleme ---------------- */}
+      <Card style={{ marginTop: spacing.md }}>
+        <CardHeader
+          title="Bulut yedeği"
+          subtitle={
+            yedekAcik
+              ? 'Her kayıt otomatik olarak hesabına yedekleniyor'
+              : 'Şu anda kapalı — veriler yalnızca bu cihazda'
+          }
+          right={
+            <Badge
+              label={yedekAcik ? 'Açık' : 'Kapalı'}
+              tone={yedekAcik ? 'success' : 'warning'}
+            />
+          }
+        />
 
-        <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => router.back()}>
-          <Text style={{ color: RENK, fontSize: 15, fontWeight: '600' }}>Geri Dön</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        {yedekAcik ? (
+          <>
+            <Text variant="caption" tone="muted" style={{ lineHeight: 18 }}>
+              Yedeğin hesabının kimliğiyle şifrelenmiş bir belgede tutulur. Yeni bir
+              cihazda aynı e-posta ve şifreyle giriş yaptığında tüm kayıtların geri gelir.
+            </Text>
+            <Pressable onPress={sifreSifirla} style={{ paddingVertical: spacing.md }}>
+              <Text variant="label" color={vurgu.base}>
+                Şifremi değiştir
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text variant="caption" tone="muted" style={{ marginBottom: spacing.md, lineHeight: 18 }}>
+              Bir şifre belirleyerek yedeklemeyi açabilirsin. Mevcut kayıtların hemen
+              buluta taşınır ve başka bir cihazda giriş yaparak erişebilirsin.
+            </Text>
+            <Field
+              label="Yeni şifre"
+              value={sifre}
+              onChangeText={setSifre}
+              placeholder="En az 6 karakter"
+              secureTextEntry
+              autoCapitalize="none"
+              accent={ACCENT}
+              ikon="lock-closed-outline"
+              hata={hatalar.sifre}
+            />
+            <Button
+              label="Yedeklemeyi aç"
+              icon="cloud-upload-outline"
+              variant="secondary"
+              accent={ACCENT}
+              loading={hesapAcilyor}
+              onPress={yedeklemeyiAc}
+            />
+          </>
+        )}
+      </Card>
+
+      {/* ---------------- Tehlikeli bölge ---------------- */}
+      <Card style={{ marginTop: spacing.md }}>
+        <CardHeader title="Hesap" />
+        <Button
+          label="Çıkış yap"
+          variant="danger"
+          icon="log-out-outline"
+          onPress={() => setCikisPaneli(true)}
+        />
+      </Card>
+
+      <Sheet
+        visible={cikisPaneli}
+        onClose={() => setCikisPaneli(false)}
+        title="Çıkış yapılsın mı?"
+        subtitle={
+          yedekAcik
+            ? 'Bu cihazdaki veriler silinir. Tekrar giriş yaptığında bulut yedeğinden geri yüklenir.'
+            : 'Yedekleme kapalı olduğu için bu cihazdaki veriler kalıcı olarak silinir.'
+        }
+      >
+        <SheetAction
+          icon="log-out-outline"
+          label="Çıkış yap"
+          tone="danger"
+          hint={yedekAcik ? 'Yedeğinden geri yükleyebilirsin' : 'Bu işlem geri alınamaz'}
+          onPress={cikisYapVeTemizle}
+        />
+        <SheetAction icon="close-outline" label="Vazgeç" onPress={() => setCikisPaneli(false)} />
+      </Sheet>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center' },
-  hero: { borderRadius: 18, padding: 20, marginBottom: 18, alignItems: 'center' },
-  heroIconKutu: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  heroBaslik: { fontSize: 22, fontWeight: '800', color: '#fff' },
-  heroAlt: { fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
-  card: { borderRadius: 18, borderWidth: 1, padding: 18 },
-  etiket: { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 5 },
-  input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 15 },
-  hataYazisi: { color: '#dc3545', marginTop: 12, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  basariYazisi: { color: '#16A34A', marginTop: 12, fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  buton: { marginTop: 20, padding: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  butonYazi: { color: '#fff', fontSize: 15, fontWeight: '800' },
-});

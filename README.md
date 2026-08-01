@@ -1,50 +1,193 @@
-# Welcome to your Expo app 👋
+# Prim Hesaplama
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Saha teknisyenleri için maaş, prim ve harcama takibi. Ana maaşın üzerine kurulum
+ve nöbet primlerini hesaplar, ayları arşivler, harcamaları gruplar ve verileri
+kullanıcının kendi hesabına yedekler.
 
-## Get started
+**Expo SDK 57 · React Native 0.86 · React 19 · Firebase 12 · iOS / Android / Web**
 
-1. Install dependencies
+<p align="center">
+  <img src="docs/demo/screens/01-maas-acik.png" width="24%" alt="Maaş ekranı" />
+  <img src="docs/demo/screens/04-gecmis-acik.png" width="24%" alt="Geçmiş ekranı" />
+  <img src="docs/demo/screens/02-harcamalar-acik.png" width="24%" alt="Harcamalar ekranı" />
+  <img src="docs/demo/screens/08-maas-koyu.png" width="24%" alt="Koyu tema" />
+</p>
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## İçindekiler
 
-   ```bash
-   npx expo start
-   ```
+- [Özellikler](#özellikler)
+- [Prim hesabı](#prim-hesabı)
+- [Kurulum](#kurulum)
+- [Komutlar](#komutlar)
+- [Proje yapısı](#proje-yapısı)
+- [Veri modeli ve güvenlik](#veri-modeli-ve-güvenlik)
+- [Yönetim paneli](#yönetim-paneli)
+- [Dağıtım](#dağıtım)
+- [Ekran görüntülerini yenileme](#ekran-görüntülerini-yenileme)
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Özellikler
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Sekme | Ne yapar |
+|---|---|
+| **Maaş** | Ana maaş + dört prim kalemini girer, toplamı canlı hesaplar, ayı arşive kaydeder. Aynı ay için ikinci kayıt engellenir; mevcut kayıt düzenlenebilir. |
+| **Harcamalar** | Gün, açıklama ve tutar alır. Kayıtlar aya göre gruplanır, her ayın toplamı başlıkta durur. Açıklamada "taksi/uber/servis" geçerse saat de sorulur. |
+| **Hızlı** | Hiçbir şey kaydetmeyen senaryo hesaplayıcı. Hazır "sakin / ortalama / yoğun ay" şablonlarıyla tek dokunuşta karşılaştırma. |
+| **Geçmiş** | Yıllık toplam, toplam prim ve aylık ortalama; son 6 ayın sütun grafiği; seçilen ayın kalem kırılımı. |
 
-## Get a fresh project
+Bunların yanında:
 
-When you're ready, run:
+- **Yerel-öncelikli çalışma.** Tüm veri önce cihazda saklanır; uygulama çevrimdışı
+  tam işlevlidir. Ağ yavaşsa açılış beklemez.
+- **İsteğe bağlı bulut yedeği.** E-posta + şifreyle hesap açıldığında kayıtlar
+  kullanıcının kendi UID'si altına yedeklenir; yeni cihazda giriş yapıldığında
+  yerel ve buluttaki veri kimliğe göre birleştirilir, hiçbir kayıt kaybolmaz.
+- **Açık / koyu tema.** İki mod için ayrı ayrı seçilmiş renk adımları; sistem
+  tercihini izler, kullanıcı elle de değiştirebilir.
+- **Erişilebilirlik.** Tüm dokunulabilir öğelerde rol ve etiket, dokunsal geri
+  bildirim, `prefers-reduced-motion` uyumlu animasyonlar.
 
-```bash
-npm run reset-project
+## Prim hesabı
+
+İş kuralının tek kaynağı [`lib/prim.js`](lib/prim.js):
+
+```js
+birim(kalem) = anaMaas × ORAN[kalem]
+tutar(kalem) = birim(kalem) × adet(kalem)
+toplam       = anaMaas + Σ tutar(kalem)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+| Kalem | Oran |
+|---|---|
+| Kurulum | %2,5 |
+| Hafta içi nöbet | %2,5 |
+| Hafta sonu nöbet | %3,5 |
+| Araç nöbeti | %3,5 |
 
-## Learn more
+Oranı değiştirmek için yalnızca `PRIM_ORANLARI` güncellenir; "Maaş" ve "Hızlı"
+ekranları da, geçmiş kayıtların kırılımı da aynı fonksiyondan beslenir.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Kurulum
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+git clone <repo-url>
+cd MaasProjesi
+npm install
 
-## Join the community
+cp .env.example .env      # Firebase değerlerini doldurun
+npx expo start
+```
 
-Join our community of developers creating universal apps.
+`.env` içindeki değerler Firebase Console → *Proje ayarları → Uygulamalarınız*
+bölümünden alınır. Bunlar gizli anahtar değildir (istemci yapılandırması tasarımı
+gereği herkese açıktır); ayrı dosyada tutulmalarının nedeni geliştirme ve üretim
+ortamları arasında kod değişikliği olmadan geçebilmektir. Verinin korunması
+[`firestore.rules`](firestore.rules) ile sağlanır.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+**Firebase tarafında gerekenler:**
+
+1. **Authentication** → *Sign-in method*: **Anonymous** ve **Email/Password**
+   sağlayıcılarını etkinleştirin.
+2. **Firestore** → veritabanı oluşturun, ardından kuralları dağıtın:
+   `npm run deploy:rules`
+3. `firestore.rules` içindeki yönetici e-postasını kendi adresinizle değiştirin.
+
+## Komutlar
+
+| Komut | Açıklama |
+|---|---|
+| `npm start` | Expo geliştirme sunucusu |
+| `npm run ios` / `npm run android` | Yerel derleme ile çalıştır |
+| `npm run web` | Tarayıcıda çalıştır |
+| `npm run build:web` | `dist/` altına web sürümünü dışa aktar |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript kontrolü |
+| `npm run deploy:rules` | Firestore güvenlik kurallarını yayınla |
+| `npm run deploy:admin` | Yönetim panelini Firebase Hosting'e yayınla |
+
+## Proje yapısı
+
+```
+app/                    expo-router rotaları (dosya = ekran)
+  (tabs)/               dört ana sekme
+  kayit · profil · feedback
+components/ui/          tasarım sistemi bileşenleri
+theme/                  renk, boşluk, tipografi jetonları + ThemeProvider
+lib/                    saf iş mantığı — prim hesabı, biçimleme, depolama
+services/               Firebase: auth, yedekleme, kullanıcı, geri bildirim
+admin-panel/            web yönetim paneli (tek dosya, derleme adımı yok)
+docs/                   teknik doküman + ekran görüntüsü üretici
+firestore.rules         tek yetkilendirme noktası
+```
+
+Ayrım net: `lib/` Firebase'i tanımaz ve saf fonksiyonlardan oluşur, `services/`
+ağ katmanıdır, `app/` yalnızca bu ikisini birleştirir. Ekranlar ham renk kodu
+kullanmaz — hepsi `useTheme()` üzerinden jetonlardan okur.
+
+## Veri modeli ve güvenlik
+
+**Cihazda (AsyncStorage):** `maasKayitlari`, `harcamaKayitlari`,
+`kullaniciProfili`, `temaTercihi`, `hatirlananMaas`, `maasiHatirla`.
+
+**Firestore:**
+
+| Koleksiyon | Kimlik | Erişim |
+|---|---|---|
+| `yedekler/{uid}` | oturum UID'si | yalnızca sahibi okur ve yazar |
+| `kullanicilar/{uid}` | oturum UID'si | sahibi yazar; yönetici okur ve silme bayrağını yönetir |
+| `geribildirimler/{autoId}` | otomatik | herkes kendi adına oluşturur; yalnızca yönetici okur ve yanıtlar |
+
+Tanımlı olmayan her yol varsayılan olarak kapalıdır.
+
+Kimlik modeli iki katmanlıdır: uygulama açılışta **anonim** oturum açar ve bu
+modda tamamen yereldir — bulut yedeği kapalıdır. Kullanıcı bir şifre
+belirlediğinde anonim hesap `linkWithCredential` ile kalıcı hesaba yükseltilir;
+UID değişmediği için o ana kadar biriken veri korunur.
+
+> **Not:** Yedek belgesi kullanıcının UID'siyle anahtarlanır. Daha önce e-posta
+> kullanılıyordu ve kural yalnızca "oturum açmış olmak" arıyordu; bu, bir
+> başkasının e-postasını bilen herkesin o kişinin maaş ve harcama geçmişini
+> okumasına izin veriyordu. Bu depoyu klonlayıp eski bir kural setiyle
+> çalıştırmayın — `npm run deploy:rules` ile güncel kuralları yayınlayın.
+
+## Yönetim paneli
+
+`admin-panel/index.html` — derleme adımı olmayan tek dosya. Firebase SDK'sı CDN'den
+ES modülü olarak yüklenir. Geri bildirimleri canlı dinler, yanıtlar (EmailJS ile
+e-posta gönderir), yumuşak siler ve geri yükler; kayıtlı kullanıcıları listeler.
+
+Yetki tamamen Firestore kurallarındadır: panel herkese açık bir URL'de dursa da
+yönetici e-postası dışında bir hesapla giriş yapan hiçbir veri göremez.
+
+> **EmailJS uyarısı:** EmailJS istemci tarafında çalışır ve anahtarları sayfa
+> kaynağından okunabilir. Şablonun üçüncü taraflarca kullanılmasını engellemek
+> için EmailJS panelinden *Account → Security → Allowed origins* altına yayın
+> alan adınızı eklemeniz gerekir.
+
+## Dağıtım
+
+```bash
+npm run deploy:rules      # Firestore kuralları  (önce bu)
+npm run deploy:admin      # Yönetim paneli
+eas build --platform all  # Mobil derlemeler
+eas update                # OTA güncelleme
+```
+
+`deploy:*` komutları `firebase-tools` gerektirir: `npx firebase-tools login`.
+
+## Ekran görüntülerini yenileme
+
+`docs/demo/capture.mjs`, web sürümünü derler, yerel bir sunucuda yayınlar ve
+Chrome'u DevTools protokolü üzerinden sürerek her ekranı iki temada da yakalar.
+Demo verisi `docs/demo/seed.html` içinde tanımlıdır.
+
+```bash
+node docs/demo/capture.mjs                # derler ve yakalar
+node docs/demo/capture.mjs --skip-build   # mevcut dist/ ile yakalar
+```
+
+Teknik dokümanın tamamı için: `docs/index.html`
+(`python3 -m http.server 8080 --directory docs` ile açılabilir).
