@@ -115,6 +115,9 @@ gereği herkese açıktır); ayrı dosyada tutulmalarının nedeni geliştirme v
 ortamları arasında kod değişikliği olmadan geçebilmektir. Verinin korunması
 [`firestore.rules`](firestore.rules) ile sağlanır.
 
+Üçüncü taraf e-posta servisi gerekmez — yanıtlar yöneticinin kendi e-posta
+uygulamasından gönderilir.
+
 **Firebase tarafında gerekenler:**
 
 1. **Authentication** → *Sign-in method*: **Anonymous** ve **Email/Password**
@@ -190,10 +193,16 @@ e-posta gönderir), yumuşak siler ve geri yükler; kayıtlı kullanıcıları l
 Yetki tamamen Firestore kurallarındadır: panel herkese açık bir URL'de dursa da
 yönetici e-postası dışında bir hesapla giriş yapan hiçbir veri göremez.
 
-> **EmailJS uyarısı:** EmailJS istemci tarafında çalışır ve anahtarları sayfa
-> kaynağından okunabilir. Şablonun üçüncü taraflarca kullanılmasını engellemek
-> için EmailJS panelinden *Account → Security → Allowed origins* altına yayın
-> alan adınızı eklemeniz gerekir.
+**Yanıtlama akışı:** Yanıt yazılıp *"E-posta taslağı hazırla"* denildiğinde
+`mailto:` ile kendi e-posta uygulamanız hazır taslakla açılır; gönderimi siz
+yaparsınız. Panel gönderimi doğrulayamayacağı için kaydı "Yanıtlandı" olarak
+işaretlemeden önce onayınızı ister.
+
+> Daha önce bu iş EmailJS ile otomatikti. İstemci tarafında çalışan e-posta
+> servislerinin anahtarları yayınlanan sayfanın kaynağından okunabiliyor ve
+> bunları korumanın tek yolu olan alan adı kısıtlaması ücretli planlara ait.
+> `mailto:` ile sayfada hiçbir anahtar durmuyor, aylık kota sınırı yok ve yanıt
+> yöneticinin kendi adresinden gittiği için kullanıcı doğrudan geri yazabiliyor.
 
 ## Dağıtım
 

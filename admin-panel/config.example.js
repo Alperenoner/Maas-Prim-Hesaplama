@@ -6,9 +6,8 @@
  *
  * Firebase değerleri gizli anahtar değildir (istemci yapılandırması tasarımı
  * gereği herkese açıktır) — verinin korunması `firestore.rules` ile sağlanır.
- * Yine de deponun herkese açık olduğu durumlarda proje kimliğini ve özellikle
- * EmailJS anahtarlarını dışarıda tutmak, kotanızın üçüncü taraflarca
- * kullanılmasını zorlaştırır.
+ * Yine de deponun herkese açık olduğu durumlarda proje
+ * kimliğini dışarıda tutmak iyi bir alışkanlıktır.
  */
 
 export const firebaseConfig = {
@@ -18,18 +17,4 @@ export const firebaseConfig = {
   storageBucket: '',
   messagingSenderId: '',
   appId: '',
-};
-
-/**
- * EmailJS yanıt gönderimi.
- *
- * GÜVENLİK: EmailJS istemci tarafında çalışır; bu anahtarlar yayınlanan
- * sayfanın kaynağından okunabilir. Şablonun başkaları tarafından
- * kullanılmasını engellemenin TEK yolu EmailJS panelinden
- * Account → Security → Allowed origins altına yayın alan adınızı eklemektir.
- */
-export const EMAILJS = {
-  serviceId: '',
-  templateId: '',
-  publicKey: '',
 };

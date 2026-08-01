@@ -286,14 +286,14 @@ import {
 /* ------------------------------------------------------------------ *
  * Yapılandırma
  *
- * Firebase ve EmailJS değerleri `config.js` dosyasından okunur; bu dosya
- * sürüm kontrolüne dahil değildir. Şablon için `config.example.js`.
+ * Firebase değerleri `config.js` dosyasından okunur; bu dosya sürüm
+ * kontrolüne dahil değildir. Şablon için `config.example.js`.
  *
  * Firebase istemci yapılandırması gizli değildir — verinin korunması
  * `firestore.rules` ile sağlanır. Panel, kural dosyasında yazılı yönetici
  * e-postası dışında bir hesapla giriş yapıldığında hiçbir veri gösteremez.
  * ------------------------------------------------------------------ */
-import { firebaseConfig, EMAILJS } from './config.js';
+import { firebaseConfig } from './config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -418,6 +418,42 @@ document.querySelectorAll('.sekmeButon').forEach((buton) => {
 /* ------------------------------------------------------------------ *
  * Kart oluşturucular — tamamı DOM API'siyle, innerHTML yok
  * ------------------------------------------------------------------ */
+/**
+ * Yanıt için hazır e-posta taslağı bağlantısı üretir.
+ *
+ * Neden bir e-posta servisi değil: istemci tarafında çalışan servislerin
+ * (EmailJS vb.) anahtarları yayınlanan sayfanın kaynağından okunabiliyor ve
+ * bunları korumanın tek yolu olan alan adı kısıtlaması ücretli planlara ait.
+ * `mailto:` ile hiçbir anahtar sayfada durmuyor, kota sınırı yok ve yanıt
+ * senin kendi adresinden gittiği için kullanıcı doğrudan geri yazabiliyor.
+ */
+function mailtoBaglantisi(veri, yanitMetni) {
+  const ad = (veri.isim || '').trim();
+  const konu = 'Prim Hesaplama — geri bildiriminize yanıt';
+
+  const alinti = (veri.mesaj || '')
+    .slice(0, 500)
+    .split('\n')
+    .map((satir) => '> ' + satir)
+    .join('\n');
+
+  const govde = [
+    ad ? `Merhaba ${ad},` : 'Merhaba,',
+    '',
+    yanitMetni,
+    '',
+    '---',
+    'Gönderdiğiniz geri bildirim:',
+    alinti,
+    '',
+    'Prim Hesaplama',
+  ].join('\n');
+
+  return `mailto:${encodeURIComponent(veri.eposta)}`
+    + `?subject=${encodeURIComponent(konu)}`
+    + `&body=${encodeURIComponent(govde)}`;
+}
+
 function silDurumu(koleksiyon, id, silinsinMi) {
   return updateDoc(
     doc(db, koleksiyon, id),
@@ -484,64 +520,69 @@ function geriBildirimKarti(id, veri, silinmis) {
     kutu.placeholder = 'Yanıtınızı yazın — kullanıcının e-postasına gönderilir…';
     alan.append(kutu);
 
-    const gonder = el('button', 'yanitButon', 'Yanıtla ve e-posta gönder');
+    const gonder = el('button', 'yanitButon', 'E-posta taslağı hazırla');
     gonder.style.marginTop = '10px';
 
     const durumSatiri = el('div', 'uyari bilgi hidden');
     alan.append(gonder, durumSatiri);
 
-    gonder.addEventListener('click', async () => {
+    gonder.addEventListener('click', () => {
       const metin = kutu.value.trim();
       if (!metin) {
         durumSatiri.className = 'uyari';
+        durumSatiri.classList.remove('hidden');
         durumSatiri.textContent = 'Önce bir yanıt yazın.';
         return;
       }
       if (!veri.eposta) {
         durumSatiri.className = 'uyari';
-        durumSatiri.textContent = 'Bu kullanıcının e-postası kayıtlı değil, gönderim yapılamaz.';
+        durumSatiri.classList.remove('hidden');
+        durumSatiri.textContent = 'Bu kullanıcının e-postası kayıtlı değil.';
         return;
       }
 
-      gonder.disabled = true;
-      gonder.textContent = 'Gönderiliyor…';
-      durumSatiri.classList.add('hidden');
+      // Kendi e-posta uygulamanda hazır taslak açılır; gönderimi sen yaparsın.
+      window.location.href = mailtoBaglantisi(veri, metin);
 
-      try {
-        const yanit = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            service_id: EMAILJS.serviceId,
-            template_id: EMAILJS.templateId,
-            user_id: EMAILJS.publicKey,
-            template_params: {
-              to_email: veri.eposta,
-              isim: veri.isim || '',
-              soyisim: veri.soyisim || '',
-              mesaj: veri.mesaj || '',
-              icerik: metin,
-            },
-          }),
-        });
+      // Panel e-postanın gerçekten gönderildiğini BİLEMEZ, bu yüzden
+      // "Yanıtlandı" işaretini varsayım yapmadan sana onaylatıyor.
+      gonder.classList.add('hidden');
+      durumSatiri.className = 'uyari bilgi';
+      durumSatiri.classList.remove('hidden');
+      durumSatiri.textContent =
+        'E-posta uygulaman açıldı. Gönderdikten sonra aşağıdaki düğmeye bas.';
 
-        // Firestore'a YALNIZCA e-posta gerçekten gittiyse yaz.
-        // Önceki sürüm önce durumu güncelliyor, e-posta başarısız olsa bile
-        // kayıt "Yanıtlandı" görünüyordu.
-        if (!yanit.ok) throw new Error(`E-posta servisi ${yanit.status} döndü`);
+      const onayla = el('button', 'yanitButon', 'Gönderdim — yanıtlandı olarak işaretle');
+      onayla.style.marginTop = '10px';
+      const vazgec = el('button', 'cikisButon', 'Vazgeç');
+      vazgec.style.cssText = 'margin-top:10px;margin-left:8px';
 
-        await updateDoc(doc(db, 'geribildirimler', id), {
-          durum: 'Yanıtlandı',
-          yanit: metin,
-          yanitTarihi: serverTimestamp(),
-        });
-      } catch (e) {
-        durumSatiri.className = 'uyari';
-        durumSatiri.textContent = `Gönderilemedi: ${e.message}`;
-        durumSatiri.classList.remove('hidden');
-        gonder.disabled = false;
-        gonder.textContent = 'Yanıtla ve e-posta gönder';
-      }
+      const satir = el('div');
+      satir.append(onayla, vazgec);
+      alan.append(satir);
+
+      onayla.addEventListener('click', async () => {
+        onayla.disabled = true;
+        onayla.textContent = 'Kaydediliyor…';
+        try {
+          await updateDoc(doc(db, 'geribildirimler', id), {
+            durum: 'Yanıtlandı',
+            yanit: metin,
+            yanitTarihi: serverTimestamp(),
+          });
+        } catch (e) {
+          durumSatiri.className = 'uyari';
+          durumSatiri.textContent = 'Kaydedilemedi: ' + e.message;
+          onayla.disabled = false;
+          onayla.textContent = 'Gönderdim — yanıtlandı olarak işaretle';
+        }
+      });
+
+      vazgec.addEventListener('click', () => {
+        satir.remove();
+        durumSatiri.classList.add('hidden');
+        gonder.classList.remove('hidden');
+      });
     });
 
     kart.append(alan);
