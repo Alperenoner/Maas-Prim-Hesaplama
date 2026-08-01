@@ -1,241 +1,396 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useContext, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { yedegeKaydet } from '../../yedekleme';
-import { TAB_RENKLERI, ThemeContext } from './_layout';
+import { useCallback, useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
-const RENK = TAB_RENKLERI.maas;
+import {
+  AmountRow,
+  Badge,
+  Banner,
+  Button,
+  Card,
+  CardHeader,
+  Divider,
+  EmptyState,
+  Field,
+  PageHeader,
+  Screen,
+  SectionLabel,
+  Sheet,
+  SheetAction,
+  Stepper,
+  Text,
+  TotalCard,
+} from '../../components/ui';
+import { ayEtiketi, paraKisa, rakamFormatla, sadeceRakam } from '../../lib/format';
+import { yeniId } from '../../lib/ids';
+import { PRIM_KALEMLERI, kayitOlustur, kayittanAdetler, primHesapla } from '../../lib/prim';
+import {
+  maasHatirlamaOku,
+  maasHatirlamaYaz,
+  maasKayitlariniOku,
+  maasKayitlariniYaz,
+} from '../../lib/storage';
+import { useOturum } from '../../services/auth';
+import { yedegeYaz } from '../../services/backup';
+import { useTheme } from '../../theme';
 
-export default function App() {
+const ACCENT = 'maas';
+const BOS_ADETLER = { kurulum: '', haftaIci: '', haftaSonu: '', arac: '' };
+
+export default function MaasEkrani() {
+  const { color, spacing, accent } = useTheme();
+  const vurgu = accent[ACCENT];
+
   const [maas, setMaas] = useState('');
+  const [adetler, setAdetler] = useState(BOS_ADETLER);
   const [hatirla, setHatirla] = useState(false);
-  const [kurulum, setKurulum] = useState('');
-  const [haftaIci, setHaftaIci] = useState('');
-  const [haftaSonu, setHaftaSonu] = useState('');
-  const [arac, setArac] = useState('');
-  const [aylikKayitlar, setAylikKayitlar] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [kullaniciEpostasi, setKullaniciEpostasi] = useState(null);
+  const [kayitlar, setKayitlar] = useState([]);
+  const [duzenlenenId, setDuzenlenenId] = useState(null);
+  const [secilenKayit, setSecilenKayit] = useState(null);
+  const [durum, setDurum] = useState(null);
+  const { yedekAcik, hazir: oturumHazir } = useOturum();
 
-  const { isDark } = useContext(ThemeContext);
+  const buAy = ayEtiketi();
 
-  const bg = isDark ? '#121212' : '#f2f4f8';
-  const text = isDark ? '#ffffff' : '#1f2430';
-  const cardBg = isDark ? '#1e1e1e' : '#ffffff';
-  const inputBg = isDark ? '#2c2c2c' : '#f7f8fb';
-  const borderColor = isDark ? '#3a3a3a' : '#e6e8ee';
-  const mutedText = isDark ? '#9aa0aa' : '#8a8f9a';
-  const anlikKutuBg = isDark ? '#2c2c2c' : '#eef0fc';
+  useFocusEffect(
+    useCallback(() => {
+      let iptal = false;
 
-  useFocusEffect(useCallback(() => { verileriYukle(); }, []));
+      (async () => {
+        const [liste, hatirlama] = await Promise.all([maasKayitlariniOku(), maasHatirlamaOku()]);
+        if (iptal) return;
+        setKayitlar(liste);
+        if (hatirlama.acik && hatirlama.tutar) {
+          setHatirla(true);
+          setMaas((onceki) => onceki || hatirlama.tutar);
+        }
+      })();
 
-  const verileriYukle = async () => {
-    try {
-      const kayitlar = await AsyncStorage.getItem('maasKayitlari');
-      if (kayitlar !== null) setAylikKayitlar(JSON.parse(kayitlar));
-      const saklananMaas = await AsyncStorage.getItem('saklananMaas');
-      const saklananHatirla = await AsyncStorage.getItem('saklananHatirla');
-      if (saklananHatirla === 'true' && saklananMaas) { setMaas(saklananMaas); setHatirla(true); }
-      const profil = await AsyncStorage.getItem('kullaniciProfili');
-      if (profil) setKullaniciEpostasi(JSON.parse(profil).eposta || null);
-    } catch (e) { console.log(e); }
+      return () => {
+        iptal = true;
+      };
+    }, [])
+  );
+
+  const hesap = useMemo(() => primHesapla(maas, adetler), [maas, adetler]);
+
+  const buAyKayitli = useMemo(() => kayitlar.find((kayit) => kayit.ay === buAy), [kayitlar, buAy]);
+
+  const adetDegistir = (anahtar, deger) =>
+    setAdetler((onceki) => ({ ...onceki, [anahtar]: sadeceRakam(deger) }));
+
+  const hatirlaDegistir = async (acik) => {
+    setHatirla(acik);
+    await maasHatirlamaYaz(acik, maas);
   };
 
-  const hatirlaDegistir = async (value) => {
-    setHatirla(value);
-    if (value) { await AsyncStorage.setItem('saklananMaas', maas); await AsyncStorage.setItem('saklananHatirla', 'true'); }
-    else { await AsyncStorage.removeItem('saklananMaas'); await AsyncStorage.setItem('saklananHatirla', 'false'); }
+  const formuTemizle = () => {
+    setAdetler(BOS_ADETLER);
+    setDuzenlenenId(null);
   };
 
-  const sayiyiFormatla = (deger) => !deger ? '' : Number(deger).toLocaleString('tr-TR');
-  const sadeceRakam = (t, setter) => setter(t.replace(/[^0-9]/g, ''));
-
-  const anaMaas = parseFloat(maas) || 0;
-  const birim2Bucuk = anaMaas * 0.025;
-  const birim3Bucuk = anaMaas * 0.035;
-
-  const kSayi = parseInt(kurulum) || 0;
-  const hiSayi = parseInt(haftaIci) || 0;
-  const hsSayi = parseInt(haftaSonu) || 0;
-  const aSayi = parseInt(arac) || 0;
-
-  const kPara = birim2Bucuk * kSayi;
-  const hiPara = birim2Bucuk * hiSayi;
-  const hsPara = birim3Bucuk * hsSayi;
-  const aPara = birim3Bucuk * aSayi;
-
-  const anlikToplam = anaMaas + kPara + hiPara + hsPara + aPara;
-
-  const ayaKaydet = async () => {
-    if (anlikToplam === 0) { Alert.alert("Hata", "Önce maaş girmelisin."); return; }
-    const suAnkiAy = new Date().toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
-
-    if (!editingId) {
-      const buAyZatenVarMi = aylikKayitlar.find(item => item.ay === suAnkiAy);
-      if (buAyZatenVarMi) {
-        Alert.alert("Hata", "Bu ay için kayıtlı maaş-prim hesaplamanız mevcut. Yeni giriş değil düzenleme yapmanız gerekmektedir.");
-        return;
-      }
+  const kaydet = async () => {
+    if (hesap.anaMaas <= 0) {
+      setDurum({ tone: 'danger', mesaj: 'Kaydetmeden önce ana maaş tutarını girin.' });
+      return;
     }
 
-    let guncelListe = [...aylikKayitlar];
-    const kayitVerisi = {
-      ay: suAnkiAy,
-      toplam: anlikToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      hamToplam: anlikToplam, rawMaas: maas,
-      kurulumAdet: kSayi, kurulumPara: kPara,
-      haftaIciAdet: hiSayi, haftaIciPara: hiPara,
-      haftaSonuAdet: hsSayi, haftaSonuPara: hsPara,
-      aracAdet: aSayi, aracPara: aPara,
-      ozet: `Kurulum: ${kSayi} | H.İçi: ${hiSayi} | H.Sonu: ${hsSayi} | Araç: ${aSayi}`
-    };
-
-    if (editingId) {
-      guncelListe = aylikKayitlar.map(item => item.id === editingId ? { ...item, ...kayitVerisi } : item);
-      setEditingId(null);
-      Alert.alert("Başarılı", "Kayıt güncellendi.");
-    } else {
-      guncelListe = [{ id: Math.random().toString(), ...kayitVerisi }, ...aylikKayitlar];
-      Alert.alert("Başarılı", `${suAnkiAy} eklendi.`);
+    if (!duzenlenenId && buAyKayitli) {
+      setDurum({
+        tone: 'warning',
+        mesaj: `${buAy} için zaten bir kayıt var. Aşağıdaki karta dokunup "Düzenle" ile güncelleyebilirsiniz.`,
+      });
+      return;
     }
 
-    setAylikKayitlar(guncelListe);
-    await AsyncStorage.setItem('maasKayitlari', JSON.stringify(guncelListe));
-    yedegeKaydet(kullaniciEpostasi, { maasKayitlari: guncelListe });
-    setKurulum(''); setHaftaIci(''); setHaftaSonu(''); setArac('');
+    const kayit = kayitOlustur({
+      id: duzenlenenId ?? yeniId(),
+      ay: duzenlenenId ? (kayitlar.find((k) => k.id === duzenlenenId)?.ay ?? buAy) : buAy,
+      maas,
+      adetler,
+    });
+
+    const yeniListe = duzenlenenId
+      ? kayitlar.map((k) => (k.id === duzenlenenId ? kayit : k))
+      : [kayit, ...kayitlar];
+
+    const kaydedilen = await maasKayitlariniYaz(yeniListe);
+    setKayitlar(kaydedilen);
+
+    if (hatirla) await maasHatirlamaYaz(true, maas);
+    yedegeYaz({ maasKayitlari: kaydedilen });
+
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
+
+    setDurum({
+      tone: 'success',
+      mesaj: duzenlenenId ? `${kayit.ay} güncellendi.` : `${kayit.ay} kaydedildi.`,
+    });
+    formuTemizle();
   };
 
   const kayitSil = async (id) => {
-    const kalanlar = aylikKayitlar.filter(item => item.id !== id);
-    setAylikKayitlar(kalanlar);
-    await AsyncStorage.setItem('maasKayitlari', JSON.stringify(kalanlar));
-    yedegeKaydet(kullaniciEpostasi, { maasKayitlari: kalanlar });
+    const kalan = kayitlar.filter((k) => k.id !== id);
+    const kaydedilen = await maasKayitlariniYaz(kalan);
+    setKayitlar(kaydedilen);
+    yedegeYaz({ maasKayitlari: kaydedilen });
+    if (duzenlenenId === id) formuTemizle();
+    setSecilenKayit(null);
+    setDurum({ tone: 'success', mesaj: 'Kayıt silindi.' });
   };
 
-  const kartTiklandi = (item) => {
-    Alert.alert(`${item.ay} İşlemleri`, "Ne yapmak istersin?", [
-      { text: "Vazgeç", style: "cancel" },
-      { text: "Sil", style: "destructive", onPress: () => kayitSil(item.id) },
-      { text: "Düzenle", onPress: () => { setEditingId(item.id); setMaas(item.rawMaas||''); setKurulum(item.kurulumAdet?.toString()||'0'); setHaftaIci(item.haftaIciAdet?.toString()||'0'); setHaftaSonu(item.haftaSonuAdet?.toString()||'0'); setArac(item.aracAdet?.toString()||'0'); } }
-    ]);
+  const duzenlemeyeAl = (kayit) => {
+    setDuzenlenenId(kayit.id);
+    setMaas(String(kayit.hamMaas || ''));
+    const mevcut = kayittanAdetler(kayit);
+    setAdetler(Object.fromEntries(Object.entries(mevcut).map(([k, v]) => [k, v ? String(v) : ''])));
+    setSecilenKayit(null);
+    setDurum({
+      tone: 'info',
+      mesaj: `${kayit.ay} düzenleniyor. Değişiklikleri kaydetmeyi unutmayın.`,
+    });
   };
 
   return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={[styles.hero, { backgroundColor: RENK }]}>
-          <View style={styles.heroIconKutu}>
-            <Ionicons name="wallet" size={22} color="#fff" />
+    <Screen>
+      <PageHeader
+        title="Maaş"
+        subtitle={`${buAy} · hak ediş hesabı`}
+        icon="wallet"
+        accent={ACCENT}
+        right={buAyKayitli ? <Badge label="Bu ay kayıtlı" accent={ACCENT} /> : null}
+      />
+
+      {durum ? (
+        <Banner
+          tone={durum.tone}
+          message={durum.mesaj}
+          style={{ marginBottom: spacing.lg }}
+          action={
+            <Pressable onPress={() => setDurum(null)} hitSlop={8}>
+              <Text variant="caption" color={vurgu.base} style={{ fontWeight: '700' }}>
+                Tamam
+              </Text>
+            </Pressable>
+          }
+        />
+      ) : null}
+
+      {oturumHazir && !yedekAcik ? (
+        <Banner
+          tone="warning"
+          title="Bulut yedeği kapalı"
+          message="Verileriniz yalnızca bu cihazda. Profil ekranından hesap oluşturarak yedeklemeyi açabilirsiniz."
+          style={{ marginBottom: spacing.lg }}
+        />
+      ) : null}
+
+      {/* ---------------- Girdi ---------------- */}
+      <Card>
+        <CardHeader title="Ana maaş" subtitle="Prim oranları bu tutar üzerinden hesaplanır" />
+
+        <Field
+          value={rakamFormatla(maas)}
+          onChangeText={(metin) => setMaas(sadeceRakam(metin))}
+          keyboardType="number-pad"
+          placeholder="Örn: 30.000"
+          accent={ACCENT}
+          ikon="cash-outline"
+          sonEk="TL"
+          style={{ marginBottom: spacing.sm }}
+        />
+
+        <Pressable
+          onPress={() => hatirlaDegistir(!hatirla)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: spacing.sm,
+          }}
+        >
+          <View style={{ flex: 1, marginRight: spacing.md }}>
+            <Text variant="bodyStrong">Maaşımı hatırla</Text>
+            <Text variant="caption" tone="faint" style={{ marginTop: 1 }}>
+              Uygulamayı açtığında tutar hazır gelir
+            </Text>
           </View>
-          <Text style={styles.heroBaslik}>Maaş Takip Sistemi</Text>
-        </View>
+          <Switch
+            value={hatirla}
+            onValueChange={hatirlaDegistir}
+            trackColor={{ true: vurgu.base, false: color.borderStrong }}
+            thumbColor="#FFFFFF"
+          />
+        </Pressable>
+      </Card>
 
-        <View style={[styles.inputAlan, { backgroundColor: cardBg, borderColor: borderColor, borderWidth: 1 }]}>
-          <Text style={[styles.etiket, { color: text }]}>Ana Maaş Tutarı</Text>
-          <TextInput style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]} keyboardType="numeric" value={sayiyiFormatla(maas)} onChangeText={(t) => sadeceRakam(t, setMaas)} placeholder="Örn: 30.000" placeholderTextColor={mutedText} />
+      {/* ---------------- Kalemler ---------------- */}
+      <Card style={{ marginTop: spacing.md }}>
+        <CardHeader
+          title="Prim kalemleri"
+          subtitle={hesap.anaMaas > 0 ? 'Birim değerler maaşa göre güncellendi' : 'Önce maaş girin'}
+        />
 
-          <View style={styles.switchSatir}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="bookmark" size={14} color={RENK} style={{ marginRight: 5 }} />
-              <Text style={[styles.switchEtiket, { color: mutedText }]}>Maaşımı Hatırla</Text>
+        {PRIM_KALEMLERI.map((kalem, sira) => {
+          const satir = hesap.kalemler[sira];
+          return (
+            <View key={kalem.key}>
+              {sira > 0 ? <Divider style={{ marginVertical: spacing.xs }} /> : null}
+              <Stepper
+                label={kalem.etiket}
+                ikon={kalem.ikon}
+                accent={ACCENT}
+                value={adetler[kalem.key]}
+                onChange={(deger) => adetDegistir(kalem.key, deger)}
+                yardim={
+                  hesap.anaMaas > 0
+                    ? `%${(satir.oran * 100).toLocaleString('tr-TR')} · birim ${paraKisa(satir.birim)} TL`
+                    : `%${(satir.oran * 100).toLocaleString('tr-TR')}`
+                }
+              />
+              {satir.tutar > 0 ? (
+                <Animated.View entering={FadeIn.duration(200)} style={{ paddingLeft: 44 }}>
+                  <Text variant="caption" color={vurgu.base} style={{ fontWeight: '700' }}>
+                    + {paraKisa(satir.tutar)} TL
+                  </Text>
+                </Animated.View>
+              ) : null}
             </View>
-            <Switch value={hatirla} onValueChange={hatirlaDegistir} trackColor={{ true: RENK, false: '#767577' }} />
-          </View>
+          );
+        })}
+      </Card>
 
-          <Text style={[styles.etiket, { color: text }]}>Kurulum Sayısı {kSayi > 0 && <Text style={{ color: RENK }}>(+ {kPara.toLocaleString('tr-TR')} TL)</Text>}</Text>
-          <TextInput style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]} keyboardType="numeric" value={sayiyiFormatla(kurulum)} onChangeText={(t) => sadeceRakam(t, setKurulum)} placeholder="0" placeholderTextColor={mutedText} />
+      {/* ---------------- Toplam ---------------- */}
+      <View style={{ marginTop: spacing.md }}>
+        <TotalCard
+          label="Bu ayki toplam hak ediş"
+          value={hesap.toplam}
+          accent={ACCENT}
+          hint={
+            hesap.primToplam > 0
+              ? `${paraKisa(hesap.anaMaas)} TL maaş + ${paraKisa(hesap.primToplam)} TL prim`
+              : 'Kalem ekledikçe toplam güncellenir'
+          }
+        />
+      </View>
 
-          <Text style={[styles.etiket, { color: text }]}>Hafta İçi Nöbet {hiSayi > 0 && <Text style={{ color: RENK }}>(+ {hiPara.toLocaleString('tr-TR')} TL)</Text>}</Text>
-          <TextInput style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]} keyboardType="numeric" value={sayiyiFormatla(haftaIci)} onChangeText={(t) => sadeceRakam(t, setHaftaIci)} placeholder="0" placeholderTextColor={mutedText} />
+      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+        {duzenlenenId ? (
+          <Button
+            label="Vazgeç"
+            variant="ghost"
+            onPress={() => {
+              formuTemizle();
+              setDurum(null);
+            }}
+            full={false}
+            style={{ flex: 1 }}
+          />
+        ) : null}
+        <Button
+          label={duzenlenenId ? 'Değişiklikleri kaydet' : 'Bu ayı kaydet'}
+          icon={duzenlenenId ? 'checkmark-circle-outline' : 'save-outline'}
+          accent={ACCENT}
+          onPress={kaydet}
+          disabled={hesap.anaMaas <= 0}
+          full={false}
+          style={{ flex: 2 }}
+        />
+      </View>
 
-          <Text style={[styles.etiket, { color: text }]}>Hafta Sonu Nöbet {hsSayi > 0 && <Text style={{ color: RENK }}>(+ {hsPara.toLocaleString('tr-TR')} TL)</Text>}</Text>
-          <TextInput style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]} keyboardType="numeric" value={sayiyiFormatla(haftaSonu)} onChangeText={(t) => sadeceRakam(t, setHaftaSonu)} placeholder="0" placeholderTextColor={mutedText} />
+      {/* ---------------- Son kayıtlar ---------------- */}
+      <SectionLabel label="Son kayıtlar" />
 
-          <Text style={[styles.etiket, { color: text }]}>Araç Nöbeti {aSayi > 0 && <Text style={{ color: RENK }}>(+ {aPara.toLocaleString('tr-TR')} TL)</Text>}</Text>
-          <TextInput style={[styles.input, { backgroundColor: inputBg, color: text, borderColor: borderColor }]} keyboardType="numeric" value={sayiyiFormatla(arac)} onChangeText={(t) => sadeceRakam(t, setArac)} placeholder="0" placeholderTextColor={mutedText} />
+      {kayitlar.length === 0 ? (
+        <Card padded={false}>
+          <EmptyState
+            icon="albums-outline"
+            accent={ACCENT}
+            title="Henüz kayıt yok"
+            description="Maaşını ve prim kalemlerini girip “Bu ayı kaydet” dediğinde ay burada listelenir."
+          />
+        </Card>
+      ) : (
+        kayitlar.slice(0, 3).map((kayit) => (
+          <Animated.View key={kayit.id} layout={LinearTransition.springify()}>
+            <Pressable onPress={() => setSecilenKayit(kayit)}>
+              {({ pressed }) => (
+                <Card
+                  style={{
+                    marginBottom: spacing.sm,
+                    opacity: pressed ? 0.7 : 1,
+                    borderColor: duzenlenenId === kayit.id ? vurgu.base : color.border,
+                    borderWidth: duzenlenenId === kayit.id ? 1.5 : StyleSheet.hairlineWidth,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyStrong">{kayit.ay}</Text>
+                      <Text variant="caption" tone="faint" style={{ marginTop: 2 }}>
+                        {kayit.ozet || 'Kalem girilmemiş'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text
+                        variant="bodyStrong"
+                        color={vurgu.base}
+                        style={{ fontVariant: ['tabular-nums'] }}
+                      >
+                        {paraKisa(kayit.hamToplam)} TL
+                      </Text>
+                      <Ionicons name="chevron-forward" size={14} color={color.textFaint} />
+                    </View>
+                  </View>
+                </Card>
+              )}
+            </Pressable>
+          </Animated.View>
+        ))
+      )}
 
-          <View style={[styles.anlikKutu, { backgroundColor: anlikKutuBg }]}>
-            <Text style={[styles.anlikYazi, { color: text }]}>Bu Ayki Toplam Hak Ediş</Text>
-            <Text style={[styles.anlikRakam, { color: RENK }]}>{anlikToplam.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL</Text>
-          </View>
+      {/* ---------------- Aksiyon paneli ---------------- */}
+      <Sheet
+        visible={Boolean(secilenKayit)}
+        onClose={() => setSecilenKayit(null)}
+        title={secilenKayit?.ay}
+        subtitle={
+          secilenKayit
+            ? `${paraKisa(secilenKayit.hamToplam)} TL · ${secilenKayit.ozet}`
+            : undefined
+        }
+      >
+        {secilenKayit
+          ? PRIM_KALEMLERI.map((kalem) => (
+              <AmountRow
+                key={kalem.key}
+                label={`${kalem.etiket} (${secilenKayit[kalem.adetAlani] ?? 0})`}
+                value={secilenKayit[kalem.paraAlani] ?? 0}
+                muted
+              />
+            ))
+          : null}
 
-          <TouchableOpacity style={[styles.buton, { backgroundColor: RENK }, editingId ? { backgroundColor: '#F59E0B' } : {}]} onPress={ayaKaydet}>
-            <Ionicons name={editingId ? 'create' : 'save'} size={17} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.butonYazi}>{editingId ? "Değişiklikleri Güncelle" : "Bu Ayı Kaydet"}</Text>
-          </TouchableOpacity>
-        </View>
+        <Divider />
 
-        <View style={styles.gecmisBaslikKutusu}>
-          <Ionicons name="albums" size={15} color={mutedText} style={{ marginRight: 5 }} />
-          <Text style={[styles.altBaslik, { color: mutedText }]}>Son 2 Ay</Text>
-        </View>
-
-        {aylikKayitlar.slice(0, 2).map((item) => (
-          <TouchableOpacity key={item.id} style={[styles.kayitKarti, { backgroundColor: cardBg, borderColor: borderColor }]} onPress={() => kartTiklandi(item)}>
-            <View style={[styles.kayitSeritKutu, { backgroundColor: RENK }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.kayitAy, { color: text }]}>{item.ay}</Text>
-              <Text style={[styles.kayitOzet, { color: mutedText }]}>{item.ozet}</Text>
-            </View>
-            <Text style={[styles.kayitToplam, { color: RENK }]}>{item.toplam} TL</Text>
-          </TouchableOpacity>
-        ))}
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <SheetAction
+          icon="create-outline"
+          label="Düzenle"
+          hint="Kalemleri forma yükler"
+          onPress={() => secilenKayit && duzenlemeyeAl(secilenKayit)}
+        />
+        <SheetAction
+          icon="trash-outline"
+          label="Sil"
+          hint="Bu ayın kaydı kalıcı olarak kaldırılır"
+          tone="danger"
+          onPress={() => secilenKayit && kayitSil(secilenKayit.id)}
+        />
+      </Sheet>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 10, paddingHorizontal: 16 },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroIconKutu: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  heroBaslik: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  altBaslik: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  gecmisBaslikKutusu: { flexDirection: 'row', alignItems: 'center', marginTop: 22, marginBottom: 10 },
-  inputAlan: {
-    padding: 16,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  etiket: { fontSize: 13, fontWeight: '600', marginTop: 10, marginBottom: 4 },
-  input: { borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 15, fontWeight: '600' },
-  switchSatir: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 4 },
-  switchEtiket: { fontSize: 13, fontWeight: '500' },
-  anlikKutu: { marginTop: 16, padding: 14, borderRadius: 12, alignItems: 'center' },
-  anlikYazi: { fontSize: 13, fontWeight: '600' },
-  anlikRakam: { fontSize: 24, fontWeight: '800', marginTop: 4 },
-  buton: { padding: 13, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 14 },
-  butonYazi: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  kayitKarti: { padding: 12, borderRadius: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 8, borderWidth: 1, overflow: 'hidden' },
-  kayitSeritKutu: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginRight: 12 },
-  kayitAy: { fontSize: 15, fontWeight: '800' },
-  kayitOzet: { fontSize: 11, marginTop: 2 },
-  kayitToplam: { fontSize: 16, fontWeight: '800' }
-});

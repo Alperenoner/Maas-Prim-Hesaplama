@@ -1,18 +1,129 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------
+    // Yardımcılar
+    // ---------------------------------------------------------------
+
+    function girisYapti() {
+      return request.auth != null;
+    }
+
+    // Yönetici, e-posta adresiyle tanımlanır.
+    //
+    // Bir saldırganın bu e-postayla token alması, aynı adrese sahip bir Firebase
+    // hesabı oluşturmasını gerektirir; adres zaten kayıtlı olduğu için
+    // `auth/email-already-in-use` ile reddedilir.
+    //
+    // SIKILAŞTIRMA: Yönetici hesabının e-postasını doğruladıktan sonra
+    // aşağıdaki satırın yorumunu kaldırın. Doğrulanmamış bir hesapla
+    // etkinleştirilirse panele giriş yapılamaz.
+    //   && request.auth.token.email_verified == true
+    //
+    // Kullanıcı sayısı arttığında özel talep (custom claim) tabanlı role geçilmeli.
+    function yoneticiMi() {
+      return girisYapti()
+        && request.auth.token.email in ['alperenoner8440@gmail.com'];
+    }
+
+    // Anonim oturumlar veri sahibi olamaz — yalnızca kalıcı hesaplar sahiplik kurar.
+    function kaliciHesap() {
+      return girisYapti() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function sahibi(uid) {
+      return kaliciHesap() && request.auth.uid == uid;
+    }
+
+    function metin(deger, enFazla) {
+      return deger is string && deger.size() > 0 && deger.size() <= enFazla;
+    }
+
+    // ---------------------------------------------------------------
+    // kullanicilar/{uid}
+    //
+    // Belge kimliği artık oturumun UID'sidir. Önceki sürümde kimlik rastgeleydi
+    // ve "oturum açmış herkes güncelleyebilir" kuralı geçerliydi; bu, belge
+    // kimliğini öğrenen birinin başkasının kaydını değiştirmesine izin veriyordu.
+    // ---------------------------------------------------------------
+    match /kullanicilar/{uid} {
+      function gecerliProfil() {
+        let d = request.resource.data;
+        return metin(d.isim, 60)
+          && metin(d.soyisim, 60)
+          && metin(d.eposta, 254)
+          && d.keys().hasOnly(['isim', 'soyisim', 'eposta', 'platform',
+                               'kayitTarihi', 'guncellenmeTarihi',
+                               'silindi', 'silinmeTarihi']);
+      }
+
+      allow get: if sahibi(uid) || yoneticiMi();
+      allow list: if yoneticiMi();
+
+      allow create: if sahibi(uid) && gecerliProfil();
+
+      // Sahip profilini güncelleyebilir; yönetici yalnızca silme bayrağını yönetir.
+      allow update: if (sahibi(uid) && gecerliProfil())
+        || (yoneticiMi()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['silindi', 'silinmeTarihi']));
+
+      allow delete: if yoneticiMi();
+    }
+
+    // ---------------------------------------------------------------
+    // geribildirimler/{docId}
+    //
+    // İstemci yalnızca KENDİ adına kayıt oluşturabilir; okuma ve yanıtlama
+    // yöneticiye kapalıdır. `uid` alanı zorunlu, böylece bir istemci
+    // başkasının kimliğiyle geri bildirim bırakamaz.
+    // ---------------------------------------------------------------
     match /geribildirimler/{docId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if request.auth != null
-        && request.auth.token.email == 'alperenoner8440@gmail.com';
+      function gecerliGeriBildirim() {
+        let d = request.resource.data;
+        return d.uid == request.auth.uid
+          && metin(d.mesaj, 2000)
+          && d.durum == 'Yeni'
+          && d.tarih == request.time
+          && d.keys().hasOnly(['uid', 'mesaj', 'isim', 'soyisim', 'eposta',
+                               'durum', 'platform', 'tarih']);
+      }
+
+      allow create: if girisYapti() && gecerliGeriBildirim();
+      allow get, list, update, delete: if yoneticiMi();
     }
-    match /kullanicilar/{docId} {
-      allow create, update: if request.auth != null;
-      allow read, delete: if request.auth != null
-        && request.auth.token.email == 'alperenoner8440@gmail.com';
+
+    // ---------------------------------------------------------------
+    // yedekler/{uid}
+    //
+    // KRİTİK DÜZELTME: Belge kimliği eskiden kullanıcının e-postasıydı ve kural
+    // yalnızca "oturum açmış olmak" arıyordu. E-postasını bilen herhangi biri
+    // (anonim oturumla dahi) bir başkasının maaş ve harcama geçmişini okuyabiliyor
+    // ve üzerine yazabiliyordu. Kimlik artık tahmin edilemeyen UID ve kural
+    // sahipliği doğruluyor. Yönetici de dahil kimse başkasının yedeğini göremez.
+    // ---------------------------------------------------------------
+    match /yedekler/{uid} {
+      function gecerliYedek() {
+        let d = request.resource.data;
+        return d.maasKayitlari is list
+          && d.harcamaKayitlari is list
+          && d.maasKayitlari.size() <= 600
+          && d.harcamaKayitlari.size() <= 5000
+          && d.keys().hasOnly(['maasKayitlari', 'harcamaKayitlari',
+                               'guncellenmeTarihi', 'surum']);
+      }
+
+      allow get: if sahibi(uid);
+      allow create, update: if sahibi(uid) && gecerliYedek();
+      allow delete: if sahibi(uid);
+      allow list: if false;
     }
-    match /yedekler/{docId} {
-      allow read, write: if request.auth != null;
+
+    // Tanımlanmamış her yol kapalıdır.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

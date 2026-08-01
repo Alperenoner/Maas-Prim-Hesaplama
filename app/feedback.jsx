@@ -1,130 +1,128 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID } from '../emailjsConfig';
-import { db } from '../firebaseConfig';
+import { View } from 'react-native';
 
-const RENK = '#4F46E5';
+import {
+  Banner,
+  Button,
+  Card,
+  Field,
+  IconButton,
+  PageHeader,
+  Screen,
+  Text,
+} from '../components/ui';
+import { profilOku } from '../lib/storage';
+import { MESAJ_MAX, MESAJ_MIN, geriBildirimGonder } from '../services/feedback';
+import { useTheme } from '../theme';
 
-export default function FeedbackScreen() {
-  const [mesaj, setMesaj] = useState('');
-  const [yukleniyor, setYukleniyor] = useState(false);
-  const [durum, setDurum] = useState(null);
-  const [profil, setProfil] = useState(null);
+const ACCENT = 'maas';
+
+export default function GeriBildirimEkrani() {
+  const { spacing, color, status } = useTheme();
   const router = useRouter();
 
+  const [mesaj, setMesaj] = useState('');
+  const [profil, setProfil] = useState(null);
+  const [durum, setDurum] = useState(null);
+  const [gonderiliyor, setGonderiliyor] = useState(false);
+
   useEffect(() => {
-    AsyncStorage.getItem('kullaniciProfili').then(veri => {
-      if (veri) setProfil(JSON.parse(veri));
-    });
+    profilOku().then(setProfil);
   }, []);
 
-  const otomatikYanitGonder = async (hedefProfil) => {
-    if (EMAILJS_SERVICE_ID.startsWith('BURAYA')) return;
-    try {
-      await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: EMAILJS_SERVICE_ID,
-          template_id: EMAILJS_TEMPLATE_ID,
-          user_id: EMAILJS_PUBLIC_KEY,
-          template_params: {
-            to_email: hedefProfil.eposta,
-            isim: hedefProfil.isim,
-            soyisim: hedefProfil.soyisim,
-            mesaj: mesaj,
-          },
-        }),
-      });
-    } catch (e) {
-      console.log('EmailJS gönderim hatası:', e);
-    }
-  };
+  const kalan = MESAJ_MAX - mesaj.length;
+  const yeterli = mesaj.trim().length >= MESAJ_MIN;
 
   const gonder = async () => {
-    if (!mesaj) { setDurum('bos'); return; }
-
-    setYukleniyor(true);
     setDurum(null);
+    if (!yeterli) {
+      setDurum({ tone: 'danger', mesaj: `Mesaj en az ${MESAJ_MIN} karakter olmalı.` });
+      return;
+    }
+
+    setGonderiliyor(true);
     try {
-      await addDoc(collection(db, "geribildirimler"), {
-        mesaj: mesaj,
-        tarih: serverTimestamp(),
-        durum: "Yeni",
-        platform: Platform.OS,
-        isim: profil?.isim || null,
-        soyisim: profil?.soyisim || null,
-        eposta: profil?.eposta || null,
-      });
-
-      if (profil?.eposta) {
-        await otomatikYanitGonder(profil);
-      }
-
+      await geriBildirimGonder({ mesaj, profil });
       setMesaj('');
-      setDurum('basarili');
-    } catch (error) {
-      setDurum('hata');
-      console.log("Firebase Hatası: ", error);
+      setDurum({
+        tone: 'success',
+        mesaj: 'Geri bildirimin alındı, teşekkürler. Yanıt gerekirse e-postandan dönüş yapılacak.',
+      });
+    } catch (hata) {
+      setDurum({
+        tone: 'danger',
+        mesaj: hata?.message ?? 'Gönderilemedi. İnternet bağlantını kontrol edip tekrar dene.',
+      });
     } finally {
-      setYukleniyor(false);
+      setGonderiliyor(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, padding: 20, backgroundColor: '#f2f4f8' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: RENK, borderRadius: 16, padding: 16, marginBottom: 18 }}>
-        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-          <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>Geri Bildirim</Text>
-          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>Uygulamayı geliştirmemiz için fikirlerini paylaş</Text>
-        </View>
-      </View>
-
-      <TextInput
-        style={{ backgroundColor: '#fff', padding: 15, borderRadius: 14, minHeight: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: '#e6e8ee', marginBottom: 15, fontSize: 16 }}
-        multiline
-        placeholder="Fikirlerinizi buraya yazın..."
-        value={mesaj}
-        onChangeText={setMesaj}
+    <Screen edges={{ top: true, bottom: true }}>
+      <PageHeader
+        title="Geri bildirim"
+        subtitle="Fikirlerin uygulamanın yönünü belirliyor"
+        icon="chatbubble-ellipses"
+        accent={ACCENT}
+        right={<IconButton icon="close" accessibilityLabel="Kapat" onPress={() => router.back()} />}
       />
 
-      <TouchableOpacity
-        style={{ backgroundColor: RENK, padding: 15, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
-        onPress={gonder}
-        disabled={yukleniyor}
+      {durum ? (
+        <Banner tone={durum.tone} message={durum.mesaj} style={{ marginBottom: spacing.lg }} />
+      ) : null}
+
+      <Card>
+        <Field
+          label="Mesajın"
+          value={mesaj}
+          onChangeText={(metin) => setMesaj(metin.slice(0, MESAJ_MAX))}
+          placeholder="Eksik bulduğun bir şey, bir hata ya da eklenmesini istediğin bir özellik…"
+          multiline
+          numberOfLines={6}
+          accent={ACCENT}
+          inputStyle={{ minHeight: 130, textAlignVertical: 'top', paddingTop: 12 }}
+          style={{ marginBottom: spacing.sm }}
+        />
+
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginBottom: spacing.md,
+          }}
+        >
+          <Text variant="caption" tone="faint">
+            {yeterli ? 'Gönderilmeye hazır' : `En az ${MESAJ_MIN} karakter`}
+          </Text>
+          <Text
+            variant="caption"
+            color={kalan < 100 ? status.warning : color.textFaint}
+            style={{ fontVariant: ['tabular-nums'] }}
+          >
+            {kalan}
+          </Text>
+        </View>
+
+        <Button
+          label="Gönder"
+          icon="send-outline"
+          accent={ACCENT}
+          loading={gonderiliyor}
+          disabled={!yeterli}
+          onPress={gonder}
+        />
+      </Card>
+
+      <Text
+        variant="caption"
+        tone="faint"
+        style={{ textAlign: 'center', marginTop: spacing.lg, lineHeight: 17 }}
       >
-        {yukleniyor ? <ActivityIndicator color="#fff" style={{ marginRight: 10 }} /> : <Ionicons name="send" size={17} color="#fff" style={{ marginRight: 8 }} />}
-        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>
-          {yukleniyor ? "Gönderiliyor..." : "Gönder"}
-        </Text>
-      </TouchableOpacity>
-
-      {durum === 'basarili' && (
-        <Text style={{ color: '#16A34A', textAlign: 'center', marginTop: 15, fontSize: 16, fontWeight: '600' }}>
-          ✓ Geri bildiriminiz alındı, teşekkürler!
-        </Text>
-      )}
-      {durum === 'hata' && (
-        <Text style={{ color: '#dc3545', textAlign: 'center', marginTop: 15, fontSize: 16, fontWeight: '600' }}>
-          Gönderilirken bir sorun oluştu, tekrar deneyin.
-        </Text>
-      )}
-      {durum === 'bos' && (
-        <Text style={{ color: '#dc3545', textAlign: 'center', marginTop: 15, fontSize: 16 }}>
-          Lütfen bir mesaj yazın.
-        </Text>
-      )}
-
-      <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => router.back()}>
-        <Text style={{ color: RENK, fontSize: 16, fontWeight: '600' }}>Vazgeç ve Geri Dön</Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+        Mesajınla birlikte adın, e-postan ve kullandığın platform iletilir.
+        Maaş veya harcama verilerin gönderilmez.
+      </Text>
+    </Screen>
   );
 }

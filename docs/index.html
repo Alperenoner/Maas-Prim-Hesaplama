@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prim Hesaplama — Teknik Doküman</title>
+<style>
+/* ============================================================
+   JETONLAR
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --plane:      #f7f8fa;
+  --surface:    #ffffff;
+  --surface-2:  #f0f2f5;
+  --ink:        #0f172a;
+  --ink-2:      #5a6474;
+  --muted:      #8b94a3;
+  --grid:       #e3e7ec;
+  --ring:       rgba(15,23,42,.10);
+  --shadow:     0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06);
+
+  --maas:    #4F46E5;
+  --harcama: #DC2626;
+  --hizli:   #15803D;
+  --gecmis:  #B45309;
+
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --s0: #b9b8b1;
+  --seq: #2a78d6;
+
+  --good: #0ca30c;  --good-ink: #006300;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --crit: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane: #0b0d10; --surface: #14171c; --surface-2: #1b1f26;
+    --ink: #f7f8fa; --ink-2: #9aa4b2; --muted: #6b7684;
+    --grid: #252a33; --ring: rgba(255,255,255,.10);
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+    --maas: #8B85FF; --harcama: #FF7A7A; --hizli: #4ADE80; --gecmis: #FBBF24;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s0: #6d6c66;
+    --seq: #3987e5; --good-ink: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0b0d10; --surface: #14171c; --surface-2: #1b1f26;
+  --ink: #f7f8fa; --ink-2: #9aa4b2; --muted: #6b7684;
+  --grid: #252a33; --ring: rgba(255,255,255,.10);
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+  --maas: #8B85FF; --harcama: #FF7A7A; --hizli: #4ADE80; --gecmis: #FBBF24;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s0: #6d6c66;
+  --seq: #3987e5; --good-ink: #0ca30c;
+}
+
+/* ============================================================
+   TEMEL
+   ============================================================ */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--plane); color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3,h4 { line-height: 1.25; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+p { margin: 0 0 1em; color: var(--ink-2); }
+a { color: var(--seq); }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .87em; }
+code:not(pre code) {
+  background: var(--surface-2); border: 1px solid var(--ring);
+  padding: .1em .38em; border-radius: 5px; color: var(--ink);
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+/* ---------------- üst çubuk ---------------- */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--plane) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid var(--ring);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 16px; height: 56px; }
+.brandmark { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14.5px; }
+.brandmark .dot {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--maas), var(--hizli));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--maas) 16%, transparent);
+}
+.navlinks { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+.navlinks a {
+  color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 600;
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap; transition: background .16s, color .16s;
+}
+.navlinks a:hover, .navlinks a.on { background: var(--surface-2); color: var(--ink); }
+.themebtn {
+  border: 1px solid var(--ring); background: var(--surface); color: var(--ink);
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 15px;
+  display: grid; place-items: center; flex: none; transition: transform .18s, background .16s;
+}
+.themebtn:hover { transform: rotate(-18deg) scale(1.06); background: var(--surface-2); }
+.progressbar {
+  position: absolute; left: 0; bottom: -1px; height: 2px; width: 0;
+  background: linear-gradient(90deg, var(--maas), var(--hizli));
+}
+@media (max-width: 940px) { .navlinks { display: none; } }
+
+/* ---------------- hero ---------------- */
+.hero { position: relative; overflow: hidden; padding: 72px 0 56px; }
+.hero::before {
+  content: ""; position: absolute; inset: -40% -20% auto -20%; height: 620px;
+  background:
+    radial-gradient(48% 52% at 22% 30%, color-mix(in srgb, var(--maas) 28%, transparent), transparent 70%),
+    radial-gradient(44% 48% at 78% 22%, color-mix(in srgb, var(--hizli) 22%, transparent), transparent 70%),
+    radial-gradient(40% 46% at 55% 78%, color-mix(in srgb, var(--gecmis) 18%, transparent), transparent 70%);
+  filter: blur(46px); opacity: .75;
+  animation: drift 22s ease-in-out infinite alternate;
+}
+@keyframes drift {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(-3%,3%,0) scale(1.08); }
+  100% { transform: translate3d(4%,-2%,0) scale(1.03); }
+}
+.hero .wrap { position: relative; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-2); background: var(--surface); border: 1px solid var(--ring);
+  padding: 6px 13px; border-radius: 999px; margin-bottom: 20px;
+}
+.pulse {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--good);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent);
+  animation: pulse 2.2s infinite;
+}
+@keyframes pulse { 70% { box-shadow: 0 0 0 9px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.hero h1 { font-size: clamp(2.1rem, 5.4vw, 3.4rem); letter-spacing: -0.035em; max-width: 18ch; }
+.hero .lede { font-size: clamp(1rem, 2.1vw, 1.16rem); max-width: 64ch; margin-top: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+.chip {
+  font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--ring); color: var(--ink-2);
+}
+
+/* ---------------- kartlar ---------------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); gap: 14px; margin-top: 40px; }
+.tile {
+  background: var(--surface); border: 1px solid var(--ring); border-radius: 14px;
+  padding: 18px 16px; box-shadow: var(--shadow); position: relative; overflow: hidden;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s;
+}
+.tile:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(0,0,0,.05), 0 14px 34px rgba(0,0,0,.1); }
+.tile .cap { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.tile .val { font-size: 2rem; font-weight: 700; margin-top: 6px; letter-spacing: -0.03em; }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.tile .accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+
+section { padding: 60px 0; border-top: 1px solid var(--grid); }
+.sechead { margin-bottom: 30px; }
+.secnum { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sechead h2 { font-size: clamp(1.4rem, 3vw, 1.95rem); margin-top: 5px; letter-spacing: -0.028em; }
+.sechead p { margin-top: 10px; max-width: 70ch; }
+
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 16px; padding: 22px; box-shadow: var(--shadow); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(224px, 1fr)); gap: 14px; }
+
+.rv { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+.rv.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; transition: none; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------------- şekiller ---------------- */
+.figure { background: var(--surface); border: 1px solid var(--ring); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); }
+.figure figcaption { font-size: 12.5px; color: var(--muted); margin-top: 12px; }
+.figtitle { font-size: 14.5px; font-weight: 700; margin-bottom: 3px; }
+.figsub { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+.svgscroll { overflow-x: auto; }
+svg { display: block; max-width: 100%; }
+.dashflow { stroke-dasharray: 5 7; animation: flow 1.1s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+
+/* ---------------- ekran görüntüleri ---------------- */
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 18px; }
+.shot { display: flex; flex-direction: column; gap: 9px; }
+.shot img {
+  width: 100%; border-radius: 18px; border: 1px solid var(--ring);
+  box-shadow: var(--shadow); display: block; background: var(--surface-2);
+  transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s;
+  cursor: zoom-in;
+}
+.shot img:hover { transform: translateY(-5px) scale(1.015); box-shadow: 0 4px 8px rgba(0,0,0,.08), 0 20px 44px rgba(0,0,0,.16); }
+.shot .cap { font-size: 12.5px; color: var(--muted); text-align: center; }
+.shot .cap b { color: var(--ink); font-weight: 600; }
+
+.segbar { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 4px; gap: 3px; margin-bottom: 20px; }
+.segbar button {
+  border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600; padding: 7px 15px; border-radius: 7px;
+  transition: background .16s, color .16s;
+}
+.segbar button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+#lightbox {
+  position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.85);
+  display: none; align-items: center; justify-content: center; padding: 28px; cursor: zoom-out;
+}
+#lightbox.acik { display: flex; }
+#lightbox img { max-width: 100%; max-height: 100%; border-radius: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+
+/* ---------------- listeler, tablolar ---------------- */
+ul.feat { margin: 10px 0 0; padding-left: 0; list-style: none; }
+ul.feat li { position: relative; padding-left: 20px; font-size: 14.2px; color: var(--ink-2); margin-bottom: 7px; }
+ul.feat li::before {
+  content: ""; position: absolute; left: 3px; top: .62em;
+  width: 6px; height: 6px; border-radius: 2px; background: var(--acc, var(--seq));
+}
+table { width: 100%; border-collapse: collapse; font-size: 13.4px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
+.tablewrap { overflow-x: auto; margin-top: 12px; }
+.tabletoggle {
+  background: none; border: 1px solid var(--ring); color: var(--ink-2); cursor: pointer;
+  font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 8px; margin-top: 16px; font-family: inherit;
+}
+.tabletoggle:hover { background: var(--surface-2); color: var(--ink); }
+
+pre {
+  background: var(--surface-2); border: 1px solid var(--ring); border-radius: 11px;
+  padding: 14px 16px; overflow-x: auto; font-size: 12.6px; line-height: 1.6; margin: 0; color: var(--ink-2);
+}
+pre .k { color: var(--s1); font-weight: 600; }
+pre .s { color: var(--good-ink); }
+pre .c { color: var(--muted); font-style: italic; }
+pre .d { color: var(--crit); }
+
+.note { border-left: 3px solid var(--acc, var(--seq)); background: var(--surface-2); border-radius: 0 10px 10px 0; padding: 13px 16px; font-size: 13.8px; color: var(--ink-2); }
+.note b { color: var(--ink); }
+
+.fix { display: flex; gap: 13px; padding: 16px 0; border-bottom: 1px solid var(--grid); }
+.fix:last-child { border-bottom: none; }
+.fixicon { width: 25px; height: 25px; border-radius: 7px; display: grid; place-items: center; flex: none; font-size: 13px; color: #fff; font-weight: 700; margin-top: 2px; }
+.fix h4 { font-size: 14.5px; }
+.fix p { font-size: 13.6px; margin: 4px 0 0; }
+.sev { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; color: #fff; margin-left: 8px; vertical-align: 2px; }
+
+.beforeafter { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.beforeafter > div { border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+.ba-eski { background: color-mix(in srgb, var(--crit) 10%, transparent); border: 1px solid color-mix(in srgb, var(--crit) 30%, transparent); }
+.ba-yeni { background: color-mix(in srgb, var(--good) 10%, transparent); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); }
+.beforeafter .etk { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.ba-eski .etk { color: var(--crit); }
+.ba-yeni .etk { color: var(--good-ink); }
+@media (max-width: 620px) { .beforeafter { grid-template-columns: 1fr; } }
+
+.tree { font-family: ui-monospace, Menlo, monospace; font-size: 12.8px; line-height: 1.85; color: var(--ink-2); }
+.tree .d { color: var(--s1); font-weight: 600; }
+.tree .n { color: var(--muted); }
+
+.barrow { display: grid; grid-template-columns: 148px 1fr 84px; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+.barrow .lbl { color: var(--ink-2); text-align: right; }
+.bartrack { background: var(--surface-2); border-radius: 5px; height: 14px; }
+.bar { height: 14px; border-radius: 0 4px 4px 0; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.barrow .num { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; }
+
+.stack { display: flex; height: 40px; border-radius: 8px; overflow: hidden; background: var(--surface-2); gap: 2px; }
+.seg { transition: width .5s cubic-bezier(.2,.8,.2,1); min-width: 0; }
+.seg:first-child { border-radius: 8px 0 0 8px; }
+.seg:last-child { border-radius: 0 8px 8px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; }
+.lgi { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.lgi i { width: 11px; height: 11px; border-radius: 3.5px; display: block; flex: none; }
+.calcgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-2); margin-bottom: 5px; }
+.field input {
+  width: 100%; padding: 9px 11px; border-radius: 9px; font-size: 15px; font-weight: 600;
+  border: 1px solid var(--ring); background: var(--surface-2); color: var(--ink);
+  font-family: inherit; font-variant-numeric: tabular-nums;
+}
+.field input:focus { outline: 2px solid var(--seq); outline-offset: 1px; }
+.hero-figure { font-size: clamp(1.9rem, 5vw, 2.7rem); font-weight: 700; letter-spacing: -0.03em; }
+
+footer { padding: 44px 0 60px; border-top: 1px solid var(--grid); color: var(--muted); font-size: 13px; }
+
+#tip {
+  position: fixed; z-index: 99; pointer-events: none; opacity: 0;
+  background: var(--surface); border: 1px solid var(--ring); border-radius: 9px;
+  padding: 8px 11px; font-size: 12.5px; box-shadow: var(--shadow); transition: opacity .12s; color: var(--ink);
+}
+#tip b { display: block; font-size: 13px; }
+#tip span { color: var(--muted); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div id="tip"></div>
+<div id="lightbox"><img alt="" /></div>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brandmark"><span class="dot"></span> Prim Hesaplama</div>
+    <nav class="navlinks">
+      <a href="#ekranlar">Ekranlar</a>
+      <a href="#mimari">Mimari</a>
+      <a href="#tasarim">Tasarım sistemi</a>
+      <a href="#motor">Prim motoru</a>
+      <a href="#kimlik">Kimlik &amp; yedek</a>
+      <a href="#guvenlik">Güvenlik</a>
+      <a href="#duzeltmeler">Düzeltmeler</a>
+      <a href="#kod">Kod</a>
+    </nav>
+    <button class="themebtn" id="themebtn" aria-label="Temayı değiştir">🌙</button>
+  </div>
+  <div class="progressbar" id="progressbar"></div>
+</div>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow rv"><span class="pulse"></span> Teknik doküman · sürüm 2</div>
+    <h1 class="rv">Maaş ve prim takibi için<br />yerel-öncelikli mobil uygulama</h1>
+    <p class="lede rv">
+      <b>Prim Hesaplama</b>, saha teknisyenlerinin ana maaşına eklenen kurulum ve nöbet
+      primlerini hesaplayan, ayları arşivleyen ve harcamaları takip eden bir
+      React&nbsp;Native uygulamasıdır. Tüm veri önce cihazda tutulur; bulut yedeği
+      isteğe bağlıdır ve yalnızca kullanıcının kendi hesabıyla erişilebilir.
+    </p>
+    <div class="chips rv">
+      <span class="chip">Expo SDK 57</span>
+      <span class="chip">React Native 0.86</span>
+      <span class="chip">React 19.2</span>
+      <span class="chip">expo-router</span>
+      <span class="chip">Firebase 12</span>
+      <span class="chip">Reanimated 4</span>
+      <span class="chip">Yeni Mimari</span>
+      <span class="chip">React Compiler</span>
+    </div>
+
+    <div class="tiles">
+      <div class="tile rv">
+        <span class="accent" style="background:var(--maas)"></span>
+        <div class="cap">Ekran</div><div class="val"><span class="count" data-to="8">0</span></div>
+        <div class="sub">4 sekme + 4 yığın ekranı</div>
+      </div>
+      <div class="tile rv">
+        <span class="accent" style="background:var(--harcama)"></span>
+        <div class="cap">UI bileşeni</div><div class="val"><span class="count" data-to="20">0</span></div>
+        <div class="sub">tek tasarım sisteminde</div>
+      </div>
+      <div class="tile rv">
+        <span class="accent" style="background:var(--gecmis)"></span>
+        <div class="cap">Uygulama kodu</div><div class="val"><span class="count" data-to="4467">0</span></div>
+        <div class="sub">satır (panel hariç)</div>
+      </div>
+      <div class="tile rv">
+        <span class="accent" style="background:var(--hizli)"></span>
+        <div class="cap">Kapatılan açık</div><div class="val"><span class="count" data-to="7">0</span></div>
+        <div class="sub">2'si kritik seviyede</div>
+      </div>
+      <div class="tile rv">
+        <span class="accent" style="background:var(--s1)"></span>
+        <div class="cap">Platform</div><div class="val"><span class="count" data-to="3">0</span></div>
+        <div class="sub">iOS · Android · Web</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ EKRANLAR ============================ -->
+<section id="ekranlar">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">01</div>
+      <h2>Ekranlar</h2>
+      <p>
+        Aşağıdaki görüntüler uygulamanın web sürümünden otomatik olarak üretildi:
+        <code>node docs/demo/capture.mjs</code> web paketini derler, yerel bir sunucuda
+        yayınlar ve Chrome'u DevTools protokolü üzerinden sürerek her ekranı iki temada
+        da yakalar. Görsele tıklayarak büyütebilirsiniz.
+      </p>
+    </div>
+
+    <div class="segbar rv" role="tablist">
+      <button class="on" data-tema="acik" role="tab">Açık tema</button>
+      <button data-tema="koyu" role="tab">Koyu tema</button>
+    </div>
+
+    <div class="shots rv" id="shots"></div>
+  </div>
+</section>
+
+<!-- ============================ MİMARİ ============================ -->
+<section id="mimari">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">02</div>
+      <h2>Mimari</h2>
+      <p>
+        Sunucu kodu yok; uygulama doğrudan Firestore ile konuşur ve yetkilendirme
+        tamamen güvenlik kurallarındadır. Katmanlar arasındaki ayrım nettir:
+        <code>lib/</code> Firebase'i tanımayan saf iş mantığıdır, <code>services/</code>
+        ağ katmanıdır, <code>app/</code> yalnızca bu ikisini birleştirir.
+      </p>
+    </div>
+
+    <figure class="figure rv">
+      <div class="figtitle">Katman şeması</div>
+      <div class="figsub">Kesik çizgiler ağ çağrılarını, düz çizgiler yerel çağrıları gösterir.</div>
+      <div class="svgscroll">
+      <svg viewBox="0 0 940 470" width="940" height="470" role="img" aria-label="Katman şeması: ekranlar, saf mantık, servisler ve Firebase">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+          </marker>
+        </defs>
+
+        <!-- SUNUM -->
+        <rect x="16" y="16" width="400" height="150" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="32" y="42" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">SUNUM · app/ + components/ui/</text>
+        <g>
+          <rect x="32" y="54" width="86" height="34" rx="8" fill="none" stroke="var(--maas)" stroke-width="2"/>
+          <text x="75" y="75" font-size="12" font-weight="700" fill="var(--maas)" text-anchor="middle">Maaş</text>
+          <rect x="126" y="54" width="104" height="34" rx="8" fill="none" stroke="var(--harcama)" stroke-width="2"/>
+          <text x="178" y="75" font-size="12" font-weight="700" fill="var(--harcama)" text-anchor="middle">Harcamalar</text>
+          <rect x="238" y="54" width="74" height="34" rx="8" fill="none" stroke="var(--hizli)" stroke-width="2"/>
+          <text x="275" y="75" font-size="12" font-weight="700" fill="var(--hizli)" text-anchor="middle">Hızlı</text>
+          <rect x="320" y="54" width="80" height="34" rx="8" fill="none" stroke="var(--gecmis)" stroke-width="2"/>
+          <text x="360" y="75" font-size="12" font-weight="700" fill="var(--gecmis)" text-anchor="middle">Geçmiş</text>
+        </g>
+        <rect x="32" y="98" width="368" height="30" rx="8" fill="var(--surface-2)" stroke="var(--ring)" stroke-dasharray="3 3"/>
+        <text x="46" y="118" font-size="11.5" fill="var(--ink-2)">kayit · profil · feedback</text>
+        <rect x="32" y="134" width="368" height="24" rx="7" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="46" y="150" font-size="11" fill="var(--ink-2)">components/ui — Screen · Card · Field · Stepper · Sheet · BarChart…</text>
+
+        <!-- SAF MANTIK -->
+        <rect x="16" y="188" width="400" height="118" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="32" y="214" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">SAF MANTIK · lib/ (ağ bağımlılığı yok)</text>
+        <g font-family="ui-monospace, Menlo, monospace" font-size="11.5" fill="var(--ink-2)">
+          <rect x="32" y="226" width="120" height="28" rx="7" fill="none" stroke="var(--s1)" stroke-width="1.5"/><text x="44" y="244" fill="var(--s1)">prim.js</text>
+          <rect x="162" y="226" width="120" height="28" rx="7" fill="none" stroke="var(--s1)" stroke-width="1.5"/><text x="174" y="244" fill="var(--s1)">storage.js</text>
+          <rect x="292" y="226" width="108" height="28" rx="7" fill="none" stroke="var(--s1)" stroke-width="1.5"/><text x="304" y="244" fill="var(--s1)">format.js</text>
+          <rect x="32" y="262" width="120" height="28" rx="7" fill="var(--surface-2)" stroke="var(--ring)"/><text x="44" y="280">ids.js</text>
+          <rect x="162" y="262" width="238" height="28" rx="7" fill="var(--surface-2)" stroke="var(--ring)"/><text x="174" y="280">theme/tokens.js</text>
+        </g>
+
+        <!-- CİHAZ -->
+        <rect x="16" y="328" width="400" height="122" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="32" y="354" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">CİHAZ · ASYNCSTORAGE (BİRİNCİL KAYNAK)</text>
+        <g font-family="ui-monospace, Menlo, monospace" font-size="11" fill="var(--ink-2)">
+          <rect x="32" y="366" width="178" height="26" rx="6" fill="var(--surface-2)" stroke="var(--ring)"/><text x="42" y="383">maasKayitlari</text>
+          <rect x="220" y="366" width="180" height="26" rx="6" fill="var(--surface-2)" stroke="var(--ring)"/><text x="230" y="383">harcamaKayitlari</text>
+          <rect x="32" y="400" width="178" height="26" rx="6" fill="var(--surface-2)" stroke="var(--ring)"/><text x="42" y="417">kullaniciProfili</text>
+          <rect x="220" y="400" width="180" height="26" rx="6" fill="var(--surface-2)" stroke="var(--ring)"/><text x="230" y="417">temaTercihi · maasiHatirla</text>
+        </g>
+
+        <!-- SERVİSLER -->
+        <rect x="470" y="16" width="454" height="150" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="486" y="42" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">SERVİSLER · services/</text>
+        <g font-family="ui-monospace, Menlo, monospace" font-size="11.5" fill="var(--ink-2)">
+          <rect x="486" y="54" width="200" height="30" rx="7" fill="none" stroke="var(--s3)" stroke-width="1.5"/><text x="498" y="74" fill="var(--s3)">auth.js</text>
+          <rect x="696" y="54" width="212" height="30" rx="7" fill="none" stroke="var(--s3)" stroke-width="1.5"/><text x="708" y="74" fill="var(--s3)">backup.js</text>
+          <rect x="486" y="92" width="200" height="30" rx="7" fill="none" stroke="var(--s3)" stroke-width="1.5"/><text x="498" y="112" fill="var(--s3)">users.js</text>
+          <rect x="696" y="92" width="212" height="30" rx="7" fill="none" stroke="var(--s3)" stroke-width="1.5"/><text x="708" y="112" fill="var(--s3)">feedback.js</text>
+          <rect x="486" y="130" width="422" height="28" rx="7" fill="var(--surface-2)" stroke="var(--ring)"/><text x="498" y="148">firebase.js — .env'den yapılandırma + AsyncStorage kalıcılığı</text>
+        </g>
+
+        <!-- FIREBASE -->
+        <rect x="470" y="188" width="454" height="196" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="486" y="214" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">FIREBASE</text>
+        <rect x="486" y="226" width="422" height="34" rx="8" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="500" y="248" font-size="12.5" font-weight="600" fill="var(--ink)">Authentication — anonim → e-posta/şifre yükseltmesi</text>
+        <rect x="486" y="268" width="422" height="30" rx="8" fill="none" stroke="var(--s1)" stroke-width="2"/>
+        <text x="500" y="288" font-size="12" font-weight="600" fill="var(--s1)" font-family="ui-monospace, Menlo, monospace">yedekler/{uid}   ← yalnızca sahibi</text>
+        <rect x="486" y="304" width="422" height="30" rx="8" fill="none" stroke="var(--s2)" stroke-width="2"/>
+        <text x="500" y="324" font-size="12" font-weight="600" fill="var(--s2)" font-family="ui-monospace, Menlo, monospace">kullanicilar/{uid}  ← sahibi + yönetici</text>
+        <rect x="486" y="340" width="422" height="30" rx="8" fill="none" stroke="var(--s4)" stroke-width="2"/>
+        <text x="500" y="360" font-size="12" font-weight="600" fill="var(--s4)" font-family="ui-monospace, Menlo, monospace">geribildirimler/{id} ← yaz herkes, oku yönetici</text>
+
+        <rect x="470" y="404" width="454" height="46" rx="14" fill="none" stroke="var(--grid)" stroke-width="1.5"/>
+        <text x="486" y="433" font-size="12.5" font-weight="700" fill="var(--ink)">Hosting → admin-panel/index.html</text>
+
+        <!-- bağlantılar -->
+        <path d="M416 90 L444 90 L444 70 L470 70" fill="none" stroke="var(--muted)" stroke-width="1.8" marker-end="url(#ar)"/>
+        <path d="M416 240 L450 240 L450 106 L470 106" fill="none" stroke="var(--muted)" stroke-width="1.8" marker-end="url(#ar)"/>
+        <path d="M216 166 L216 188" fill="none" stroke="var(--muted)" stroke-width="1.8" marker-end="url(#ar)"/>
+        <path d="M216 306 L216 328" fill="none" stroke="var(--muted)" stroke-width="1.8" marker-end="url(#ar)"/>
+        <path d="M696 166 L696 188" fill="none" stroke="var(--s3)" stroke-width="1.8" marker-end="url(#ar)" class="dashflow"/>
+        <text x="222" y="182" font-size="10" fill="var(--muted)">kullanır</text>
+        <text x="222" y="322" font-size="10" fill="var(--muted)">okur/yazar</text>
+        <text x="702" y="182" font-size="10" fill="var(--muted)">ağ</text>
+      </svg>
+      </div>
+      <figcaption>
+        Uygulama açılışta anonim oturum açar, fakat <b>bunu beklemez</b> — göç ve
+        yerel okuma tamamlanır tamamlanmaz arayüz açılır. Ağ erişilemez olsa bile
+        uygulama tam işlevlidir.
+      </figcaption>
+    </figure>
+
+    <div class="grid2 rv" style="margin-top:16px;">
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:12px;">Dosya yapısı</h3>
+        <div class="tree">
+          <div><span class="d">app/</span> <span class="n">— rotalar (dosya = ekran)</span></div>
+          <div>├── _layout.tsx <span class="n">— göç, oturum, tema sağlayıcı</span></div>
+          <div>├── <span class="d">(tabs)/</span> <span class="n">— index · expenses · explore · history</span></div>
+          <div>└── kayit · profil · feedback</div>
+          <div style="height:6px"></div>
+          <div><span class="d">components/ui/</span> <span class="n">— tasarım sistemi (20 bileşen)</span></div>
+          <div><span class="d">theme/</span> <span class="n">— jetonlar + ThemeProvider</span></div>
+          <div><span class="d">lib/</span> <span class="n">— prim · storage · format · ids</span></div>
+          <div><span class="d">services/</span> <span class="n">— firebase · auth · backup · users · feedback</span></div>
+          <div><span class="d">admin-panel/</span> <span class="n">— tek dosya web paneli</span></div>
+          <div><span class="d">docs/</span> <span class="n">— bu doküman + ekran görüntüsü üretici</span></div>
+          <div>firestore.rules <span class="n">— tek yetkilendirme noktası</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:12px;">Durum ve veri akışı</h3>
+        <p style="font-size:14px;">
+          Global durum kütüphanesi yok. Paylaşılan tek durum tema
+          (<code>ThemeProvider</code>) ve oturum (<code>useOturum</code>) — ikisi de
+          abonelik tabanlı, dolayısıyla bir ekranda değişince diğerleri anında güncellenir.
+        </p>
+        <p style="font-size:14px;">
+          Kayıt verisi ekranlar arasında AsyncStorage üzerinden paylaşılır: her ekran
+          odağa geldiğinde diskten yeniden okur ve normalleştirir.
+        </p>
+        <pre><span class="c">// her sekmede tekrarlanan desen</span>
+useFocusEffect(useCallback(() =&gt; {
+  <span class="k">let</span> iptal = <span class="k">false</span>;
+  maasKayitlariniOku().then((liste) =&gt; {
+    <span class="k">if</span> (!iptal) setKayitlar(liste);
+  });
+  <span class="k">return</span> () =&gt; { iptal = <span class="k">true</span>; };
+}, []));</pre>
+        <div class="note" style="margin-top:14px;">
+          <b>Yazma yolu:</b> önce <code>AsyncStorage</code> (beklenir), sonra
+          <code>yedegeYaz()</code> (beklenmez). Bulut yazması başarısız olsa bile
+          kullanıcının işlemi tamamlanmış sayılır.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TASARIM SİSTEMİ ============================ -->
+<section id="tasarim">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">03</div>
+      <h2>Tasarım sistemi</h2>
+      <p>
+        Önceki sürümde her ekran kendi renklerini <code>isDark ? '#121212' : '#f2f4f8'</code>
+        biçiminde satır içi üretiyordu; aynı gri sekiz dosyada sekiz kez tanımlıydı ve
+        bir ekran (geri bildirim) koyu temayı hiç desteklemiyordu. Artık tek bir jeton
+        kümesi var ve ekranlar ham renk kodu kullanmıyor.
+      </p>
+    </div>
+
+    <div class="beforeafter rv" style="margin-bottom:20px;">
+      <div class="ba-eski">
+        <div class="etk">Önce</div>
+        <pre style="background:transparent;border:none;padding:0;font-size:12px;">const bg = isDark ? '#121212' : '#f2f4f8';
+const text = isDark ? '#ffffff' : '#1f2430';
+const cardBg = isDark ? '#1e1e1e' : '#ffffff';
+<span class="c">// …her ekranda tekrar</span></pre>
+      </div>
+      <div class="ba-yeni">
+        <div class="etk">Sonra</div>
+        <pre style="background:transparent;border:none;padding:0;font-size:12px;">const { color, spacing, accent } = useTheme();
+
+&lt;Card&gt;
+  &lt;Text variant="subheading"&gt;Ana maaş&lt;/Text&gt;
+&lt;/Card&gt;</pre>
+      </div>
+    </div>
+
+    <div class="grid3 rv">
+      <div class="card">
+        <h3 style="font-size:14.5px;margin-bottom:10px;">Renk</h3>
+        <p style="font-size:13.4px;">
+          Her sekmenin kimlik rengi <code>base</code> / <code>strong</code> /
+          <code>tint</code> / <code>on</code> dörtlüsüyle tanımlı. Koyu tema adımları
+          otomatik ters çevrilmez — koyu yüzey için ayrı ayrı seçildi.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;">
+          <div style="height:38px;border-radius:9px;background:var(--maas)"></div>
+          <div style="height:38px;border-radius:9px;background:var(--harcama)"></div>
+          <div style="height:38px;border-radius:9px;background:var(--hizli)"></div>
+          <div style="height:38px;border-radius:9px;background:var(--gecmis)"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:8px;">Maaş · Harcamalar · Hızlı · Geçmiş</div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14.5px;margin-bottom:10px;">Tipografi</h3>
+        <p style="font-size:13.4px;">
+          Dokuz basamaklı ölçek; boyut, ağırlık ve satır yüksekliği birlikte tanımlı.
+        </p>
+        <div style="margin-top:10px;">
+          <div style="font-size:24px;font-weight:700;letter-spacing:-.5px;">Başlık</div>
+          <div style="font-size:15px;font-weight:600;">Alt başlık</div>
+          <div style="font-size:15px;color:var(--ink-2)">Gövde metni</div>
+          <div style="font-size:12px;color:var(--muted)">Açıklama</div>
+        </div>
+        <div class="note" style="--acc:var(--warn);margin-top:12px;font-size:12.5px;">
+          Küçük puntolarda satır yüksekliği ~1.4'te tutuluyor: 1.27 oranında Türkçe
+          <b>ş/ç</b> çengelleri kırpılıyordu.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14.5px;margin-bottom:10px;">Etkileşim</h3>
+        <ul class="feat" style="--acc:var(--hizli)">
+          <li><code>Alert.alert</code> yerine alttan açılan panel — yıkıcı işlem görsel olarak ayrışıyor.</li>
+          <li>Adet girişinde artı/eksi düğmeleri; klavye açmadan hızlı giriş.</li>
+          <li>Basma geri bildirimi: yay animasyonu + dokunsal titreşim.</li>
+          <li>Tutar değişimi sayarak geçiyor, sıçramıyor.</li>
+          <li>Tüm dokunulabilir öğelerde rol ve erişilebilirlik etiketi.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PRİM MOTORU ============================ -->
+<section id="motor">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">04</div>
+      <h2>Prim hesaplama motoru</h2>
+      <p>
+        İş kuralı iki orandan ibaret. Önceki sürümde bu formül "Maaş" ve "Hızlı"
+        ekranlarında ayrı ayrı yazılıydı; artık tek kaynak <code>lib/prim.js</code>.
+      </p>
+    </div>
+
+    <div class="grid2">
+      <div class="card rv">
+        <h3 style="font-size:15px;margin-bottom:12px;">Tek kaynak</h3>
+        <pre><span class="c">// lib/prim.js</span>
+<span class="k">export const</span> PRIM_ORANLARI = {
+  kurulum:   <span class="s">0.025</span>,
+  haftaIci:  <span class="s">0.025</span>,
+  haftaSonu: <span class="s">0.035</span>,
+  arac:      <span class="s">0.035</span>,
+};
+
+<span class="k">export function</span> primHesapla(maas, adetler) {
+  <span class="k">const</span> anaMaas = sayiyaCevir(maas);
+  <span class="k">const</span> kalemler = PRIM_KALEMLERI.map((k) =&gt; {
+    <span class="k">const</span> birim = anaMaas * PRIM_ORANLARI[k.key];
+    <span class="k">const</span> adet  = sayiyaCevir(adetler[k.key]);
+    <span class="k">return</span> { ...k, birim, adet, tutar: birim * adet };
+  });
+  <span class="k">const</span> primToplam = kalemler.reduce((t, k) =&gt; t + k.tutar, <span class="s">0</span>);
+  <span class="k">return</span> { anaMaas, kalemler, primToplam,
+           toplam: anaMaas + primToplam };
+}</pre>
+        <div class="note" style="margin-top:14px;">
+          Bu fonksiyondan besleniyor: <b>Maaş</b> ekranı, <b>Hızlı hesap</b> ekranı,
+          <b>Geçmiş</b> kırılımı ve kayıt şeması üreten <code>kayitOlustur()</code>.
+          Oranı değiştirmek tek satırlık bir işlem.
+        </div>
+      </div>
+
+      <figure class="figure rv" style="margin:0;">
+        <div class="figtitle">Canlı hesaplayıcı</div>
+        <div class="figsub">Uygulamadaki formülün birebir aynısı.</div>
+
+        <div class="calcgrid" style="margin-bottom:18px;">
+          <div class="field"><label for="c_maas">Ana maaş</label><input id="c_maas" type="number" min="0" step="500" value="42000" /></div>
+          <div class="field"><label for="c_kur">Kurulum</label><input id="c_kur" type="number" min="0" value="12" /></div>
+          <div class="field"><label for="c_hi">Hafta içi</label><input id="c_hi" type="number" min="0" value="6" /></div>
+          <div class="field"><label for="c_hs">Hafta sonu</label><input id="c_hs" type="number" min="0" value="4" /></div>
+          <div class="field"><label for="c_ar">Araç</label><input id="c_ar" type="number" min="0" value="3" /></div>
+        </div>
+
+        <div style="font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);">Aylık toplam hak ediş</div>
+        <div class="hero-figure" id="c_total">—</div>
+        <div style="font-size:13px;color:var(--ink-2);margin-bottom:16px;">
+          bunun <b id="c_primpay" style="color:var(--good-ink)">—</b> kadarı prim
+        </div>
+
+        <div class="stack" id="c_stack" role="img" aria-label="Ana maaş ve dört prim kaleminin toplam içindeki payı">
+          <div class="seg" data-key="maas" style="background:var(--s0)"></div>
+          <div class="seg" data-key="kur"  style="background:var(--s1)"></div>
+          <div class="seg" data-key="hi"   style="background:var(--s2)"></div>
+          <div class="seg" data-key="hs"   style="background:var(--s3)"></div>
+          <div class="seg" data-key="ar"   style="background:var(--s4)"></div>
+        </div>
+
+        <div class="legend">
+          <span class="lgi"><i style="background:var(--s0)"></i>Ana maaş <b id="l_maas" style="font-variant-numeric:tabular-nums">—</b></span>
+          <span class="lgi"><i style="background:var(--s1)"></i>Kurulum <b id="l_kur" style="font-variant-numeric:tabular-nums">—</b></span>
+          <span class="lgi"><i style="background:var(--s2)"></i>Hafta içi <b id="l_hi" style="font-variant-numeric:tabular-nums">—</b></span>
+          <span class="lgi"><i style="background:var(--s3)"></i>Hafta sonu <b id="l_hs" style="font-variant-numeric:tabular-nums">—</b></span>
+          <span class="lgi"><i style="background:var(--s4)"></i>Araç <b id="l_ar" style="font-variant-numeric:tabular-nums">—</b></span>
+        </div>
+
+        <button class="tabletoggle" data-target="calctable" aria-expanded="false">Tabloyu göster</button>
+        <div class="tablewrap" id="calctable" hidden>
+          <table>
+            <thead><tr><th>Kalem</th><th class="n">Oran</th><th class="n">Adet</th><th class="n">Birim</th><th class="n">Tutar</th><th class="n">Pay</th></tr></thead>
+            <tbody id="calctbody"></tbody>
+          </table>
+        </div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ KİMLİK & YEDEK ============================ -->
+<section id="kimlik">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">05</div>
+      <h2>Kimlik ve yedekleme</h2>
+      <p>
+        Cihaz değiştirmede veriyi geri getirmek, o verinin sahibi olduğunuzu
+        kanıtlamayı gerektirir. Önceki sürümde "kanıt" yalnızca e-posta adresini
+        yazmaktı — bu, adresi bilen herkesin veriye erişmesi demekti. Yeni model
+        iki katmanlı.
+      </p>
+    </div>
+
+    <figure class="figure rv">
+      <div class="figtitle">Kimlik yükseltmesi</div>
+      <div class="figsub">Anonim oturum, veri kaybı olmadan kalıcı hesaba dönüşür.</div>
+      <div class="svgscroll">
+      <svg viewBox="0 0 920 260" width="920" height="260" role="img" aria-label="Anonim oturumdan kalıcı hesaba geçiş akışı">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+          </marker>
+        </defs>
+
+        <rect x="16" y="46" width="200" height="72" rx="12" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="116" y="72" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">Anonim oturum</text>
+        <text x="116" y="90" font-size="11" fill="var(--muted)" text-anchor="middle">uygulama tamamen yerel</text>
+        <text x="116" y="106" font-size="11" fill="var(--crit)" text-anchor="middle">bulut yedeği KAPALI</text>
+
+        <rect x="290" y="46" width="220" height="72" rx="12" fill="none" stroke="var(--s3)" stroke-width="2"/>
+        <text x="400" y="72" font-size="13" font-weight="700" fill="var(--s3)" text-anchor="middle">linkWithCredential</text>
+        <text x="400" y="90" font-size="11" fill="var(--muted)" text-anchor="middle">e-posta + şifre bağlanır</text>
+        <text x="400" y="106" font-size="11" fill="var(--muted)" text-anchor="middle">UID DEĞİŞMEZ</text>
+
+        <rect x="584" y="46" width="220" height="72" rx="12" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="694" y="72" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">Kalıcı hesap</text>
+        <text x="694" y="90" font-size="11" fill="var(--muted)" text-anchor="middle">cihazlar arası aynı UID</text>
+        <text x="694" y="106" font-size="11" fill="var(--good-ink)" text-anchor="middle">bulut yedeği AÇIK</text>
+
+        <path d="M216 82 L284 82" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+        <path d="M510 82 L578 82" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+
+        <text x="16" y="160" font-size="11.5" font-weight="700" fill="var(--muted)" letter-spacing="1.2">YENİ CİHAZDA GERİ YÜKLEME</text>
+        <rect x="16" y="174" width="184" height="34" rx="9" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="108" y="196" font-size="12" font-weight="600" fill="var(--ink)" text-anchor="middle">giriş yap</text>
+        <rect x="228" y="174" width="200" height="34" rx="9" fill="none" stroke="var(--s1)" stroke-width="2"/>
+        <text x="328" y="196" font-size="12" font-weight="600" fill="var(--s1)" text-anchor="middle">yedekler/{uid} okunur</text>
+        <rect x="456" y="174" width="240" height="34" rx="9" fill="none" stroke="var(--s1)" stroke-width="2"/>
+        <text x="576" y="196" font-size="12" font-weight="600" fill="var(--s1)" text-anchor="middle">kimliğe göre birleştirilir</text>
+        <rect x="724" y="174" width="180" height="34" rx="9" fill="var(--surface-2)" stroke="var(--ring)"/>
+        <text x="814" y="196" font-size="12" font-weight="600" fill="var(--ink)" text-anchor="middle">diske yazılır</text>
+
+        <path d="M200 191 L222 191" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+        <path d="M428 191 L450 191" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+        <path d="M696 191 L718 191" fill="none" stroke="var(--muted)" stroke-width="2" marker-end="url(#ar2)"/>
+        <text x="16" y="236" font-size="11.5" fill="var(--muted)">Birleştirme kimliğe göre yapılır — yerel ve buluttaki kayıtların hiçbiri kaybolmaz.</text>
+      </svg>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================ GÜVENLİK ============================ -->
+<section id="guvenlik">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">06</div>
+      <h2>Güvenlik kuralları</h2>
+      <p>
+        Sunucu kodu olmadığı için <code>firestore.rules</code> tek savunma hattı.
+        Kural dosyası 18 satırdan 129 satıra çıktı: her koleksiyon için sahiplik,
+        alan doğrulaması ve boyut sınırı eklendi; tanımsız her yol kapatıldı.
+      </p>
+    </div>
+
+    <div class="grid2">
+      <div class="card rv">
+        <h3 style="font-size:15px;margin-bottom:12px;">Yedek kuralı — önce ve sonra</h3>
+        <div class="beforeafter" style="grid-template-columns:1fr;">
+          <div class="ba-eski">
+            <div class="etk">Önce — herkes okuyabiliyordu</div>
+            <pre style="background:transparent;border:none;padding:0;font-size:12px;">match /yedekler/{docId} {
+  <span class="d">allow read, write: if request.auth != null;</span>
+}
+<span class="c">// docId = kullanıcının e-postası</span></pre>
+          </div>
+          <div class="ba-yeni">
+            <div class="etk">Sonra — yalnızca sahibi</div>
+            <pre style="background:transparent;border:none;padding:0;font-size:12px;">match /yedekler/{uid} {
+  allow get: <span class="k">if</span> sahibi(uid);
+  allow create, update: <span class="k">if</span> sahibi(uid)
+                        &amp;&amp; gecerliYedek();
+  allow list: <span class="k">if</span> <span class="k">false</span>;
+}
+<span class="c">// uid = tahmin edilemez oturum kimliği</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="card rv">
+        <h3 style="font-size:15px;margin-bottom:12px;">Yardımcılar</h3>
+        <pre><span class="c">// Anonim oturumlar veri sahibi olamaz</span>
+<span class="k">function</span> kaliciHesap() {
+  <span class="k">return</span> girisYapti()
+    &amp;&amp; request.auth.token.firebase
+         .sign_in_provider != <span class="s">'anonymous'</span>;
+}
+
+<span class="k">function</span> sahibi(uid) {
+  <span class="k">return</span> kaliciHesap() &amp;&amp; request.auth.uid == uid;
+}
+
+<span class="c">// Tanımsız her yol kapalı</span>
+<span class="k">match</span> /{document=**} {
+  <span class="k">allow</span> read, write: <span class="k">if</span> <span class="k">false</span>;
+}</pre>
+        <div class="note" style="--acc:var(--warn);margin-top:14px;">
+          <b>Dağıtmayı unutmayın:</b> Kurallar depoda güncel olsa da
+          <code>npm run deploy:rules</code> çalıştırılana kadar üretimde eski kurallar
+          geçerlidir.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DÜZELTMELER ============================ -->
+<section id="duzeltmeler">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">07</div>
+      <h2>Kapatılan açıklar ve düzeltilen hatalar</h2>
+      <p>Her madde, düzeltmeden önce gerçekten oluşabilecek bir senaryoyu tarif ediyor.</p>
+    </div>
+
+    <div class="card rv">
+      <div class="fix">
+        <span class="fixicon" style="background:var(--crit)">!</span>
+        <div>
+          <h4>Bulut yedeği herkese açıktı<span class="sev" style="background:var(--crit)">Kritik</span></h4>
+          <p>
+            <code>yedekler/{eposta}</code> kuralı yalnızca oturum açmış olmayı arıyordu
+            ve belge kimliği tahmin edilebilir bir e-postaydı. Anonim oturum açan
+            herhangi biri, e-postasını bildiği bir kullanıcının tüm maaş ve harcama
+            geçmişini okuyabilir ve üzerine yazabilirdi.
+            <b>Düzeltme:</b> belge kimliği oturum UID'si oldu, kural sahipliği doğruluyor.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--crit)">!</span>
+        <div>
+          <h4>Yönetim panelinde depolanmış XSS<span class="sev" style="background:var(--crit)">Kritik</span></h4>
+          <p>
+            Kartlar <code>innerHTML</code> ile kuruluyor ve kullanıcıdan gelen
+            <code>mesaj</code>, <code>isim</code>, <code>eposta</code> alanları
+            kaçışlanmadan gömülüyordu. Uygulamadan gönderilen bir geri bildirim,
+            yöneticinin tarayıcısında betik çalıştırabilirdi — panel oturumu açıkken
+            bu, tüm kullanıcı verisine erişim demekti.
+            <b>Düzeltme:</b> tüm kullanıcı verisi <code>textContent</code> ile yazılıyor.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--serious)">!</span>
+        <div>
+          <h4>Kullanıcı belgelerinde sahiplik denetimi yoktu<span class="sev" style="background:var(--serious)">Yüksek</span></h4>
+          <p>
+            <code>kullanicilar</code> üzerinde <code>update</code>, belge kimliğini bilen
+            her oturuma açıktı. <b>Düzeltme:</b> belge kimliği UID oldu; sahip kendi
+            profilini yazabiliyor, yönetici yalnızca silme bayrağını değiştirebiliyor.
+            Alan adları ve uzunlukları da kuralda doğrulanıyor.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--serious)">!</span>
+        <div>
+          <h4>Ağ yanıt vermezse uygulama açılmıyordu<span class="sev" style="background:var(--serious)">Yüksek</span></h4>
+          <p>
+            Açılış <code>signInAnonymously</code> çağrısını bekliyordu; bağlantı
+            kurulamadığında uygulama yükleme göstergesinde kilitli kalıyordu. Bu, tarayıcı
+            testinde doğrudan gözlemlendi. <b>Düzeltme:</b> kimlik doğrulama arka planda
+            yürüyor, arayüz yerel veri hazır olur olmaz açılıyor.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--serious)">!</span>
+        <div>
+          <h4>Oturum her açılışta sıfırlanıyordu<span class="sev" style="background:var(--serious)">Yüksek</span></h4>
+          <p>
+            Firebase JS SDK'sı React Native'de varsayılan olarak belleği kullanır;
+            <code>getAuth()</code> ile açılan oturum uygulama kapanınca kayboluyordu.
+            UID ile anahtarlanan yedek bu hâlde çalışamazdı.
+            <b>Düzeltme:</b> <code>initializeAuth</code> + AsyncStorage kalıcılığı.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--warn)">!</span>
+        <div>
+          <h4>Yanıtlanmayan geri bildirim "yanıtlandı" görünüyordu<span class="sev" style="background:var(--warn)">Orta</span></h4>
+          <p>
+            Panel, Firestore durumunu e-posta gönderiminden <i>önce</i> güncelliyordu;
+            EmailJS çağrısı başarısız olsa bile kayıt "Yanıtlandı" oluyor ve kullanıcı
+            hiçbir zaman yanıt almıyordu. <b>Düzeltme:</b> sıra tersine çevrildi ve
+            HTTP durumu kontrol ediliyor.
+          </p>
+        </div>
+      </div>
+
+      <div class="fix">
+        <span class="fixicon" style="background:var(--warn)">!</span>
+        <div>
+          <h4>Çakışmaya açık kayıt kimlikleri<span class="sev" style="background:var(--warn)">Orta</span></h4>
+          <p>
+            <code>Math.random().toString()</code> ile üretilen kimlikler çakışabiliyordu;
+            çakışma hâlinde silme işlemi yanlış kaydı siler, birleştirme veri kaybettirirdi.
+            <b>Düzeltme:</b> <code>crypto.randomUUID()</code>, ayrıca göç sırasında mevcut
+            çakışmalar tespit edilip yeniden kimliklendiriliyor.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2 rv" style="margin-top:16px;">
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:12px;">Arayüz ve doğruluk düzeltmeleri</h3>
+        <ul class="feat" style="--acc:var(--s1)">
+          <li><b>React Compiler çökmesi:</b> koşullu render edilen JSX içinde <code>secilenKayit.id</code> erişimi memo bağımlılığına çıkarılıp koşuldan bağımsız çözümleniyor ve altı ekran beyaz açılıyordu. Tarayıcıda yakalandı, güvenli erişimle düzeltildi.</li>
+          <li><b>Aylar takvim sırasına göre sıralanıyor</b> — eskiden ekleme sırası belirleyiciydi.</li>
+          <li><b>Sekme etiketleri kırpılmıyor</b> — "Maaş" ve "Geçmiş" varsayılan etiket kutusunda "Maas"/"Gecmis" olarak görünüyordu.</li>
+          <li><b>Geri bildirim ekranı temaya bağlandı</b> — koyu temada beyaz kalıyordu.</li>
+          <li><code>expo-navigation-bar</code> SDK 57'de kaldırılan <code>setBehaviorAsync</code> çağrısı temizlendi.</li>
+          <li>Eski kayıt biçimi için sürümlü göç eklendi — mevcut kullanıcılar veri kaybetmiyor.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:12px;">Kalan işler</h3>
+        <ul class="feat" style="--acc:var(--warn)">
+          <li><b>Kuralları dağıtın:</b> <code>npm run deploy:rules</code> — bu yapılana kadar üretimde eski kurallar geçerli.</li>
+          <li><b>EmailJS alan adı kısıtlaması:</b> panelden <i>Account → Security → Allowed origins</i> altına yayın alan adını ekleyin; anahtarlar istemcide olduğu için tek koruma bu.</li>
+          <li><b>Firebase Authentication</b> ekranından <i>Email/Password</i> sağlayıcısının açık olduğunu doğrulayın.</li>
+          <li>Yönetici e-postası doğrulandıktan sonra kural dosyasındaki <code>email_verified</code> satırının yorumunu kaldırın.</li>
+          <li>Prim oranlarını uzaktan yapılandırılabilir hâle getirmek (şu an kodda sabit).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ KOD ============================ -->
+<section id="kod">
+  <div class="wrap">
+    <div class="sechead rv">
+      <div class="secnum">08</div>
+      <h2>Kod dağılımı</h2>
+      <p>
+        Toplam 5.228 satır. Ekranlar büyüdü çünkü doğrulama, hata durumları ve boş
+        durumlar artık gerçekten ele alınıyor; buna karşılık tekrar eden stil ve
+        formül kodu ortak katmanlara taşındı.
+      </p>
+    </div>
+
+    <div class="grid2">
+      <figure class="figure rv" style="margin:0;">
+        <div class="figtitle">Dosya başına satır sayısı</div>
+        <div class="figsub">Kaynak dosyalar; yorum ve boş satırlar dahil.</div>
+        <div id="locbars"></div>
+        <button class="tabletoggle" data-target="loctable" aria-expanded="false">Tabloyu göster</button>
+        <div class="tablewrap" id="loctable" hidden>
+          <table>
+            <thead><tr><th>Dosya</th><th class="n">Satır</th></tr></thead>
+            <tbody id="loctbody"></tbody>
+          </table>
+        </div>
+      </figure>
+
+      <div class="card rv">
+        <h3 style="font-size:15px;margin-bottom:12px;">Doğrulama</h3>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td>TypeScript</td><td class="n" style="color:var(--good-ink);font-weight:700">hatasız</td></tr>
+              <tr><td>ESLint</td><td class="n" style="color:var(--good-ink);font-weight:700">hatasız</td></tr>
+              <tr><td>Web derlemesi</td><td class="n" style="color:var(--good-ink);font-weight:700">başarılı</td></tr>
+              <tr><td>Tarayıcıda açılan ekran</td><td class="n" style="color:var(--good-ink);font-weight:700">12 / 12</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note" style="margin-top:14px;">
+          <b>Nasıl doğrulandı:</b> Her ekran, derlenmiş web sürümü üzerinden başsız
+          Chrome'da açıldı; beklenen içerik DOM'a gelene kadar beklenip kare alındı ve
+          konsol istisnaları toplandı. Bu bölümdeki ekran görüntüleri o çalıştırmanın
+          çıktısıdır.
+        </div>
+        <div class="note" style="--acc:var(--warn);margin-top:12px;">
+          <b>Doğrulanmayanlar:</b> Gerçek cihazda (iOS/Android) çalıştırma, Firestore
+          kurallarının canlı ortamda denenmesi ve bulut yedeği uçtan uca akışı. Kurallar
+          dağıtıldıktan sonra bir cihazda hesap açıp ikinci cihazda giriş yaparak
+          doğrulanmalı.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;">
+      <div>
+        <b style="color:var(--ink);">Prim Hesaplama — Teknik Doküman</b><br />
+        Ekran görüntüleri <code>docs/demo/capture.mjs</code> ile üretildi.
+      </div>
+      <div style="text-align:right;font-size:12.5px;">
+        Grafik renkleri renk körlüğü ayrım testinden geçirildi.<br />
+        Açık ve koyu tema adımları ayrı ayrı doğrulandı.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ---------------- tema ---------------- */
+(function () {
+  var root = document.documentElement, btn = document.getElementById('themebtn'), saved = null;
+  try { saved = localStorage.getItem('doc-theme'); } catch (e) {}
+  root.setAttribute('data-theme', saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  var sync = function () { btn.textContent = root.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'; };
+  sync();
+  btn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('doc-theme', next); } catch (e) {}
+    sync();
+    cizEkranlar();
+  });
+})();
+
+/* ---------------- açılış animasyonu + sayaçlar ---------------- */
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function animateCount(el) {
+    var to = parseFloat(el.dataset.to);
+    if (reduce) { el.textContent = to.toLocaleString('tr-TR'); return; }
+    var start = performance.now(), dur = 1100;
+    function step(now) {
+      var t = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(to * e).toLocaleString('tr-TR');
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      en.target.classList.add('in');
+      en.target.querySelectorAll('.count').forEach(function (c) {
+        if (!c.dataset.done) { c.dataset.done = '1'; animateCount(c); }
+      });
+      io.unobserve(en.target);
+    });
+  }, { threshold: 0.14, rootMargin: '0px 0px -6% 0px' });
+  document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+})();
+
+/* ---------------- ilerleme çubuğu ---------------- */
+(function () {
+  var bar = document.getElementById('progressbar');
+  var links = [].slice.call(document.querySelectorAll('.navlinks a'));
+  var secs = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  var ticking = false;
+  function update() {
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+    var y = window.scrollY + 120, active = -1;
+    secs.forEach(function (s, i) { if (s && s.offsetTop <= y) active = i; });
+    links.forEach(function (a, i) { a.classList.toggle('on', i === active); });
+    ticking = false;
+  }
+  window.addEventListener('scroll', function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(update); }
+  }, { passive: true });
+  update();
+})();
+
+/* ---------------- ekran görüntüleri ---------------- */
+var EKRANLAR = {
+  acik: [
+    ['01-maas-acik', 'Maaş', 'Prim kalemleri ve canlı toplam'],
+    ['04-gecmis-acik', 'Geçmiş', 'Yıllık özet, grafik, kırılım'],
+    ['02-harcamalar-acik', 'Harcamalar', 'Aya göre gruplanmış gider'],
+    ['03-hizli-acik', 'Hızlı hesap', 'Kaydetmeyen senaryo aracı'],
+    ['05-profil-acik', 'Profil', 'Bilgiler ve yedekleme durumu'],
+    ['06-geribildirim-acik', 'Geri bildirim', 'Karakter sayacı ve doğrulama'],
+    ['07-kayit-acik', 'Kayıt', 'İsteğe bağlı bulut yedeği']
+  ],
+  koyu: [
+    ['08-maas-koyu', 'Maaş', 'Koyu tema için ayrı seçilmiş adımlar'],
+    ['10-gecmis-koyu', 'Geçmiş', 'Grafik ve kırılım'],
+    ['09-harcamalar-koyu', 'Harcamalar', 'Gider listesi'],
+    ['11-hizli-koyu', 'Hızlı hesap', 'Senaryo şablonları'],
+    ['12-profil-koyu', 'Profil', 'Hesap yönetimi']
+  ]
+};
+var aktifTema = 'acik';
+
+function cizEkranlar() {
+  var kap = document.getElementById('shots');
+  kap.innerHTML = '';
+  EKRANLAR[aktifTema].forEach(function (satir) {
+    var d = document.createElement('div');
+    d.className = 'shot';
+    var img = document.createElement('img');
+    img.src = 'demo/screens/' + satir[0] + '.png';
+    img.alt = satir[1] + ' ekranı';
+    img.loading = 'lazy';
+    img.addEventListener('click', function () {
+      var lb = document.getElementById('lightbox');
+      lb.querySelector('img').src = img.src;
+      lb.classList.add('acik');
+    });
+    var cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.innerHTML = '<b>' + satir[1] + '</b><br />' + satir[2];
+    d.appendChild(img); d.appendChild(cap);
+    kap.appendChild(d);
+  });
+}
+cizEkranlar();
+
+document.querySelectorAll('.segbar button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('.segbar button').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+    aktifTema = b.dataset.tema;
+    cizEkranlar();
+  });
+});
+document.getElementById('lightbox').addEventListener('click', function () {
+  this.classList.remove('acik');
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('acik');
+});
+
+/* ---------------- tablo aç/kapa ---------------- */
+document.querySelectorAll('.tabletoggle').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var t = document.getElementById(btn.dataset.target);
+    var open = t.hasAttribute('hidden');
+    if (open) t.removeAttribute('hidden'); else t.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Tabloyu gizle' : 'Tabloyu göster';
+  });
+});
+
+/* ---------------- ipucu ---------------- */
+var tip = document.getElementById('tip');
+function showTip(e, title, sub) {
+  tip.innerHTML = '<b>' + title + '</b><span>' + sub + '</span>';
+  tip.style.opacity = '1'; moveTip(e);
+}
+function moveTip(e) {
+  var x = e.clientX + 14, y = e.clientY + 16, r = tip.getBoundingClientRect();
+  if (x + r.width > window.innerWidth - 10) x = e.clientX - r.width - 14;
+  if (y + r.height > window.innerHeight - 10) y = e.clientY - r.height - 16;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() { tip.style.opacity = '0'; }
+
+/* ---------------- canlı hesaplayıcı ---------------- */
+(function () {
+  var TL = function (n) { return n.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' TL'; };
+  var PCT = function (n) { return (n * 100).toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + '%'; };
+  var KALEMLER = [
+    { key: 'maas', ad: 'Ana maaş', oran: null, adet: null },
+    { key: 'kur', ad: 'Kurulum', oran: 0.025, adet: 'c_kur' },
+    { key: 'hi', ad: 'Hafta içi', oran: 0.025, adet: 'c_hi' },
+    { key: 'hs', ad: 'Hafta sonu', oran: 0.035, adet: 'c_hs' },
+    { key: 'ar', ad: 'Araç', oran: 0.035, adet: 'c_ar' }
+  ];
+  var stack = document.getElementById('c_stack'), tbody = document.getElementById('calctbody');
+  function num(el) { var v = parseFloat(el.value); return isFinite(v) && v > 0 ? v : 0; }
+
+  function hesapla() {
+    var maas = num(document.getElementById('c_maas'));
+    var rows = KALEMLER.map(function (k) {
+      if (k.oran === null) return { key: k.key, ad: k.ad, oran: null, adet: null, birim: null, tutar: maas };
+      var adet = num(document.getElementById(k.adet)), birim = maas * k.oran;
+      return { key: k.key, ad: k.ad, oran: k.oran, adet: adet, birim: birim, tutar: birim * adet };
+    });
+    var toplam = rows.reduce(function (a, r) { return a + r.tutar; }, 0);
+    var prim = toplam - maas;
+
+    document.getElementById('c_total').textContent = toplam > 0 ? TL(toplam) : '—';
+    document.getElementById('c_primpay').textContent =
+      toplam > 0 ? TL(prim) + ' (' + PCT(prim / toplam) + ')' : '—';
+
+    rows.forEach(function (r) {
+      var seg = stack.querySelector('[data-key="' + r.key + '"]');
+      var pay = toplam > 0 ? r.tutar / toplam : 0;
+      seg.style.width = (pay * 100) + '%';
+      seg.style.display = r.tutar > 0 ? '' : 'none';
+      seg.onmouseenter = function (e) { showTip(e, r.ad, TL(r.tutar) + ' · ' + PCT(pay)); };
+      seg.onmousemove = moveTip;
+      seg.onmouseleave = hideTip;
+      var lbl = document.getElementById('l_' + r.key);
+      if (lbl) lbl.textContent = toplam > 0 ? TL(r.tutar) : '—';
+    });
+
+    tbody.innerHTML = '';
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var pay = toplam > 0 ? r.tutar / toplam : 0;
+      [r.ad,
+       r.oran === null ? '—' : '%' + (r.oran * 100).toLocaleString('tr-TR'),
+       r.adet === null ? '—' : r.adet.toLocaleString('tr-TR'),
+       r.birim === null ? '—' : TL(r.birim),
+       TL(r.tutar), PCT(pay)
+      ].forEach(function (v, i) {
+        var td = document.createElement('td');
+        td.textContent = v;
+        if (i > 0) td.className = 'n';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    var trt = document.createElement('tr');
+    ['Toplam', '', '', '', TL(toplam), '100%'].forEach(function (v, i) {
+      var td = document.createElement('td');
+      td.textContent = v; td.style.fontWeight = '700';
+      if (i > 0) td.className = 'n';
+      trt.appendChild(td);
+    });
+    tbody.appendChild(trt);
+  }
+  ['c_maas', 'c_kur', 'c_hi', 'c_hs', 'c_ar'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', hesapla);
+  });
+  hesapla();
+})();
+
+/* ---------------- satır sayısı çubukları ---------------- */
+(function () {
+  var DATA = [
+    { ad: 'admin-panel/index.html', n: 761 },
+    { ad: '(tabs)/index.jsx', n: 396 },
+    { ad: 'profil.jsx', n: 352 },
+    { ad: '(tabs)/expenses.jsx', n: 350 },
+    { ad: 'kayit.jsx', n: 282 },
+    { ad: '(tabs)/history.jsx', n: 249 },
+    { ad: 'lib/storage.js', n: 218 },
+    { ad: 'ui/Field.jsx', n: 193 },
+    { ad: '(tabs)/explore.jsx', n: 178 },
+    { ad: 'ui/Button.jsx', n: 170 },
+    { ad: 'theme/tokens.js', n: 160 },
+    { ad: 'ui/Feedback.jsx', n: 160 },
+    { ad: 'services/auth.js', n: 145 },
+    { ad: 'ui/Sheet.jsx', n: 142 },
+    { ad: 'firestore.rules', n: 129 },
+    { ad: 'feedback.jsx', n: 128 },
+    { ad: '(tabs)/_layout.jsx', n: 128 },
+    { ad: 'lib/prim.js', n: 117 },
+    { ad: 'ui/AmountDisplay.jsx', n: 114 },
+    { ad: 'ui/BarChart.jsx', n: 95 },
+    { ad: '_layout.tsx', n: 93 },
+    { ad: 'services/backup.js', n: 84 },
+    { ad: 'lib/format.js', n: 81 },
+    { ad: 'services/users.js', n: 80 },
+    { ad: 'ui/Screen.jsx', n: 71 },
+    { ad: 'ui/PageHeader.jsx', n: 70 },
+    { ad: 'theme/index.jsx', n: 68 },
+    { ad: 'ui/Card.jsx', n: 67 },
+    { ad: 'services/firebase.js', n: 59 },
+    { ad: 'services/feedback.js', n: 38 }
+  ];
+  var max = Math.max.apply(null, DATA.map(function (d) { return d.n; }));
+  var host = document.getElementById('locbars'), tb = document.getElementById('loctbody');
+
+  DATA.forEach(function (d, i) {
+    var row = document.createElement('div');
+    row.className = 'barrow';
+    row.innerHTML =
+      '<span class="lbl mono">' + d.ad + '</span>' +
+      '<span class="bartrack"><span class="bar" style="background:var(--seq)"></span></span>' +
+      '<span class="num">' + d.n.toLocaleString('tr-TR') + '</span>';
+    host.appendChild(row);
+    var bar = row.querySelector('.bar');
+    setTimeout(function () { bar.style.width = ((d.n / max) * 100) + '%'; }, 80 + i * 28);
+    var track = row.querySelector('.bartrack');
+    track.addEventListener('mouseenter', function (e) { showTip(e, d.ad, d.n.toLocaleString('tr-TR') + ' satır'); });
+    track.addEventListener('mousemove', moveTip);
+    track.addEventListener('mouseleave', hideTip);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="mono">' + d.ad + '</td><td class="n">' + d.n.toLocaleString('tr-TR') + '</td>';
+    tb.appendChild(tr);
+  });
+  var toplam = DATA.reduce(function (a, d) { return a + d.n; }, 0);
+  var trt = document.createElement('tr');
+  trt.innerHTML = '<td style="font-weight:700">Toplam</td><td class="n" style="font-weight:700">' + toplam.toLocaleString('tr-TR') + '</td>';
+  tb.appendChild(trt);
+})();
+</script>
+
+</body>
+</html>

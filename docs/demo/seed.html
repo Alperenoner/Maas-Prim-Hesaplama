@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Demo verisi yükleniyor…</title>
+</head>
+<body>
+<script>
+/**
+ * Demo/ekran görüntüsü tohumlayıcı.
+ *
+ * Uygulamanın web sürümünde AsyncStorage doğrudan localStorage'a yazar,
+ * bu yüzden gerçekçi bir veri seti hazırlayıp istenen rotaya yönlendirebiliyoruz.
+ * Yalnızca dokümantasyon ekran görüntüleri için kullanılır; uygulama koduna dahil değildir.
+ */
+const AYLAR = ['Şubat 2026', 'Mart 2026', 'Nisan 2026', 'Mayıs 2026', 'Haziran 2026', 'Temmuz 2026'];
+const MAAS = 42000;
+const ORAN = { kurulum: 0.025, haftaIci: 0.025, haftaSonu: 0.035, arac: 0.035 };
+const ADETLER = [
+  { kurulum: 6, haftaIci: 3, haftaSonu: 2, arac: 1 },
+  { kurulum: 9, haftaIci: 5, haftaSonu: 3, arac: 2 },
+  { kurulum: 7, haftaIci: 4, haftaSonu: 2, arac: 2 },
+  { kurulum: 12, haftaIci: 6, haftaSonu: 4, arac: 3 },
+  { kurulum: 10, haftaIci: 5, haftaSonu: 5, arac: 2 },
+  { kurulum: 14, haftaIci: 7, haftaSonu: 5, arac: 4 },
+];
+
+const maasKayitlari = AYLAR.map((ay, i) => {
+  const a = ADETLER[i];
+  const kurulumPara = MAAS * ORAN.kurulum * a.kurulum;
+  const haftaIciPara = MAAS * ORAN.haftaIci * a.haftaIci;
+  const haftaSonuPara = MAAS * ORAN.haftaSonu * a.haftaSonu;
+  const aracPara = MAAS * ORAN.arac * a.arac;
+  return {
+    id: `demo-maas-${i}`,
+    ay,
+    hamMaas: MAAS,
+    hamToplam: MAAS + kurulumPara + haftaIciPara + haftaSonuPara + aracPara,
+    kurulumAdet: a.kurulum, kurulumPara,
+    haftaIciAdet: a.haftaIci, haftaIciPara,
+    haftaSonuAdet: a.haftaSonu, haftaSonuPara,
+    aracAdet: a.arac, aracPara,
+    ozet: `Kurulum: ${a.kurulum} · H. İçi: ${a.haftaIci} · H. Sonu: ${a.haftaSonu} · Araç: ${a.arac}`,
+  };
+}).reverse();
+
+const HARCAMALAR = [
+  { gun: 28, isim: 'Market alışverişi', tutar: 2340 },
+  { gun: 26, isim: 'Taksi', tutar: 385, saat: '23:40' },
+  { gun: 22, isim: 'Elektrik faturası', tutar: 1180 },
+  { gun: 18, isim: 'Akaryakıt', tutar: 2750 },
+  { gun: 14, isim: 'Taksi', tutar: 260, saat: '08:15' },
+  { gun: 9, isim: 'İnternet faturası', tutar: 640 },
+  { gun: 4, isim: 'Öğle yemeği', tutar: 480 },
+];
+
+const harcamaKayitlari = HARCAMALAR.map((h, i) => ({
+  id: `demo-harcama-${i}`,
+  ay: 'Temmuz 2026',
+  isim: h.isim,
+  tutar: h.tutar,
+  gun: h.gun,
+  tarih: `${h.gun} Temmuz 2026`,
+  saat: h.saat ?? null,
+}));
+
+localStorage.setItem('maasKayitlari', JSON.stringify(maasKayitlari));
+localStorage.setItem('harcamaKayitlari', JSON.stringify(harcamaKayitlari));
+localStorage.setItem(
+  'kullaniciProfili',
+  JSON.stringify({ isim: 'Alperen', soyisim: 'Öner', eposta: 'alperen@ornek.com' })
+);
+localStorage.setItem('hatirlananMaas', String(MAAS));
+localStorage.setItem('maasiHatirla', 'true');
+localStorage.setItem('veriGocSurumu', '2');
+
+const parametreler = new URLSearchParams(location.search);
+const tema = parametreler.get('tema');
+if (tema === 'dark' || tema === 'light') localStorage.setItem('temaTercihi', tema);
+else localStorage.removeItem('temaTercihi');
+
+// Boş hedef kök rotayı (`/`) ifade eder — `/index.html` expo-router ile eşleşmez.
+const hedef = parametreler.get('hedef') ?? '';
+location.replace(`/${hedef}`);
+</script>
+</body>
+</html>

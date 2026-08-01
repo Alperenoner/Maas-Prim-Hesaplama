@@ -2,186 +2,258 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Prim Hesaplama - Yönetim Paneli</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Prim Hesaplama · Yönetim Paneli</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>" />
 <style>
+:root {
+  color-scheme: light;
+  --bg: #F5F6F8;
+  --surface: #FFFFFF;
+  --surface-alt: #F0F2F5;
+  --border: #E3E7EC;
+  --border-strong: #CFD5DE;
+  --text: #0F172A;
+  --muted: #5A6474;
+  --faint: #8B94A3;
+
+  --accent: #4F46E5;
+  --accent-tint: #EEF0FE;
+  --success: #15803D;
+  --success-tint: #E9F6EE;
+  --warning: #B45309;
+  --warning-tint: #FDF1E3;
+  --danger: #DC2626;
+  --danger-tint: #FEEDED;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow: 0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06);
+}
+@media (prefers-color-scheme: dark) {
   :root {
-    --indigo: #4F46E5;
-    --red: #DC2626;
-    --green: #16A34A;
-    --amber: #F59E0B;
-    --bg: #f2f4f8;
-    --card: #ffffff;
-    --border: #e6e8ee;
-    --text: #1f2430;
-    --muted: #8a8f9a;
+    color-scheme: dark;
+    --bg: #0B0D10; --surface: #14171C; --surface-alt: #1B1F26;
+    --border: #252A33; --border-strong: #39404C;
+    --text: #F7F8FA; --muted: #9AA4B2; --faint: #6B7684;
+    --accent: #8B85FF; --accent-tint: #1D1B33;
+    --success: #4ADE80; --success-tint: #122619;
+    --warning: #FBBF24; --warning-tint: #2A2113;
+    --danger: #FF7A7A; --danger-tint: #2E1A1C;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-  .hidden { display: none !important; }
+}
 
-  /* Login */
-  #girisEkrani {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .girisKutu {
-    background: var(--card);
-    border-radius: 18px;
-    padding: 32px;
-    width: 100%;
-    max-width: 380px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-  }
-  .girisHero {
-    background: var(--indigo);
-    border-radius: 14px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 22px;
-    color: #fff;
-  }
-  .girisHero h1 { font-size: 20px; margin: 0 0 4px; }
-  .girisHero p { font-size: 13px; margin: 0; opacity: 0.85; }
-  label { font-size: 13px; font-weight: 600; display: block; margin: 14px 0 6px; }
-  input {
-    width: 100%;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: #f7f8fb;
-    font-size: 15px;
-  }
-  button {
-    cursor: pointer;
-    border: none;
-    font-weight: 700;
-    font-size: 15px;
-    border-radius: 10px;
-  }
-  .anaButon {
-    width: 100%;
-    background: var(--indigo);
-    color: #fff;
-    padding: 13px;
-    margin-top: 18px;
-  }
-  .hataMesaji { color: var(--red); font-size: 13px; margin-top: 12px; text-align: center; font-weight: 600; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.hidden { display: none !important; }
+h1, h2, h3 { margin: 0; line-height: 1.25; letter-spacing: -0.02em; }
+button { font-family: inherit; cursor: pointer; border: none; font-weight: 600; border-radius: var(--radius-sm); }
+button:disabled { opacity: .55; cursor: default; }
+input, textarea {
+  width: 100%; font-family: inherit; font-size: 15px; color: var(--text);
+  background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 12px;
+}
+input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
 
-  /* Panel */
-  #panelEkrani { max-width: 900px; margin: 0 auto; padding: 20px; }
-  .ustBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--indigo);
-    border-radius: 16px;
-    padding: 16px 20px;
-    color: #fff;
-    margin-bottom: 18px;
-  }
-  .ustBar h1 { font-size: 18px; margin: 0; }
-  .cikisButon { background: rgba(255,255,255,0.2); color: #fff; padding: 8px 14px; font-size: 13px; }
+/* ---------------- Giriş ---------------- */
+#girisEkrani { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.girisKutu {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  padding: 28px; width: 100%; max-width: 380px;
+}
+.marka { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.markaIkon {
+  width: 44px; height: 44px; border-radius: var(--radius-md);
+  background: var(--accent-tint); color: var(--accent);
+  display: grid; place-items: center; font-size: 20px; flex: none;
+}
+.marka h1 { font-size: 18px; }
+.marka p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 
-  .sekmeler { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
-  .sekmeButon {
-    flex: 1;
-    min-width: 150px;
-    padding: 12px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-size: 13px;
-  }
-  .sekmeButon.aktif { background: var(--indigo); color: #fff; border-color: var(--indigo); }
-  #aramaKutusu {
-    width: 100%;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    font-size: 14px;
-    margin-bottom: 16px;
-  }
+.anaButon {
+  width: 100%; background: var(--accent); color: #fff;
+  padding: 13px; margin-top: 20px; font-size: 15px; font-weight: 700;
+  border-radius: var(--radius-md);
+}
+.anaButon:hover:not(:disabled) { filter: brightness(1.08); }
 
-  .kart {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-  .kartUst { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
-  .kartIsim { font-weight: 700; font-size: 15px; }
-  .kartEposta { font-size: 12px; color: var(--muted); }
-  .rozet { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; color: #fff; white-space: nowrap; }
-  .rozet.yeni { background: var(--amber); }
-  .rozet.yanitlandi { background: var(--green); }
-  .mesajMetni { font-size: 14px; margin: 8px 0; line-height: 1.5; white-space: pre-wrap; }
-  .tarihMetni { font-size: 11px; color: var(--muted); }
-  .yanitAlani { margin-top: 12px; }
-  .yanitAlani textarea {
-    width: 100%;
-    min-height: 70px;
-    padding: 10px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: #f7f8fb;
-    font-size: 14px;
-    font-family: inherit;
-    resize: vertical;
-  }
-  .yanitButon { background: var(--indigo); color: #fff; padding: 9px 16px; font-size: 13px; margin-top: 8px; }
-  .yanitButon:disabled { opacity: 0.6; cursor: default; }
-  .verilenYanit { background: #eef0fc; border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 13px; }
-  .verilenYanit b { color: var(--indigo); }
-  .bosDurum { text-align: center; color: var(--muted); padding: 40px 0; font-style: italic; }
-  .kartAltSatir { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-  .silButon { background: #fdecec; color: var(--red); padding: 8px 14px; font-size: 12px; }
-  .geriYukleButon { background: #eaf7ee; color: var(--green); padding: 8px 14px; font-size: 12px; }
-  .kaliciSilButon { background: var(--red); color: #fff; padding: 8px 14px; font-size: 12px; }
-  .silinmisRozet { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; color: #fff; background: var(--muted); white-space: nowrap; }
+/* ---------------- Panel ---------------- */
+#panelEkrani { max-width: 940px; margin: 0 auto; padding: 24px 20px 64px; }
+.ustBar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.ustBar h1 { font-size: 21px; }
+.ustBar .kim { font-size: 12.5px; color: var(--faint); }
+.cikisButon {
+  margin-left: auto; background: var(--surface); color: var(--muted);
+  border: 1px solid var(--border); padding: 9px 15px; font-size: 13px;
+}
+.cikisButon:hover { background: var(--surface-alt); color: var(--text); }
+
+.istatistikler { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.istatistik {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 16px;
+}
+.istatistik .cap { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+.istatistik .val { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.sekmeler {
+  display: flex; gap: 4px; background: var(--surface-alt);
+  border-radius: var(--radius-md); padding: 4px; margin-bottom: 16px; overflow-x: auto;
+}
+.sekmeButon {
+  flex: 1; white-space: nowrap; padding: 10px 14px; font-size: 13.5px;
+  background: transparent; color: var(--muted);
+}
+.sekmeButon.aktif { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.sekmeButon .sayi {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  background: var(--border); color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.sekmeButon.aktif .sayi { background: var(--accent-tint); color: var(--accent); }
+
+#aramaKutusu { margin-bottom: 18px; background: var(--surface); }
+
+/* ---------------- Kartlar ---------------- */
+.kart {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 18px; margin-bottom: 12px;
+}
+.kartUst { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.kimlik { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.avatar {
+  width: 38px; height: 38px; border-radius: var(--radius-sm); flex: none;
+  background: var(--accent-tint); color: var(--accent);
+  display: grid; place-items: center; font-weight: 700; font-size: 14px;
+}
+.kartIsim { font-weight: 600; font-size: 15px; }
+.kartEposta { font-size: 12.5px; color: var(--muted); word-break: break-all; }
+
+.rozet {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  white-space: nowrap; letter-spacing: .02em;
+}
+.rozet.yeni { background: var(--warning-tint); color: var(--warning); }
+.rozet.yanitlandi { background: var(--success-tint); color: var(--success); }
+.rozet.silindi { background: var(--surface-alt); color: var(--faint); }
+
+.mesajMetni {
+  font-size: 14.5px; margin: 14px 0 10px; line-height: 1.6; white-space: pre-wrap;
+  word-break: break-word;
+}
+.tarihMetni { font-size: 12px; color: var(--faint); }
+
+.yanitAlani { margin-top: 14px; }
+.yanitAlani textarea { min-height: 76px; resize: vertical; line-height: 1.5; }
+.verilenYanit {
+  background: var(--accent-tint); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-top: 12px; font-size: 13.5px; white-space: pre-wrap; word-break: break-word;
+}
+.verilenYanit .basligi { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); display: block; margin-bottom: 4px; }
+
+.butonSatir { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.butonSatir button { padding: 9px 15px; font-size: 13px; }
+.yanitButon { background: var(--accent); color: #fff; }
+.silButon { background: var(--danger-tint); color: var(--danger); }
+.geriYukleButon { background: var(--success-tint); color: var(--success); }
+.kaliciSilButon { background: var(--danger); color: #fff; }
+
+.bosDurum {
+  text-align: center; color: var(--faint); padding: 48px 20px;
+  background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md);
+}
+.bosDurum strong { display: block; color: var(--muted); font-size: 15px; margin-bottom: 4px; }
+
+.uyari {
+  display: flex; gap: 10px; background: var(--danger-tint); color: var(--danger);
+  border-radius: var(--radius-sm); padding: 11px 13px; font-size: 13.5px;
+  margin-top: 14px; font-weight: 500;
+}
+.bilgi { background: var(--accent-tint); color: var(--accent); }
+.basari { background: var(--success-tint); color: var(--success); }
+
+/* ---------------- Onay penceresi ---------------- */
+#onayPerde {
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(3px);
+  display: grid; place-items: center; padding: 20px; z-index: 100;
+}
+.onayKutu {
+  background: var(--surface); border-radius: var(--radius-lg); padding: 24px;
+  max-width: 400px; width: 100%; box-shadow: var(--shadow);
+}
+.onayKutu h3 { font-size: 17px; margin-bottom: 8px; }
+.onayKutu p { font-size: 14px; color: var(--muted); margin: 0 0 20px; }
 </style>
 </head>
 <body>
 
+<!-- ======================= GİRİŞ ======================= -->
 <div id="girisEkrani">
   <div class="girisKutu">
-    <div class="girisHero">
-      <h1>Yönetim Paneli</h1>
-      <p>Devam etmek için giriş yap</p>
+    <div class="marka">
+      <div class="markaIkon">💼</div>
+      <div>
+        <h1>Yönetim Paneli</h1>
+        <p>Prim Hesaplama</p>
+      </div>
     </div>
-    <label>E-posta</label>
-    <input id="girisEposta" type="email" placeholder="ornek@mail.com" autocomplete="username" />
-    <label>Şifre</label>
-    <input id="girisSifre" type="password" placeholder="••••••••" autocomplete="current-password" />
-    <button class="anaButon" id="girisButonu">Giriş Yap</button>
-    <div class="hataMesaji hidden" id="girisHata"></div>
+
+    <form id="girisFormu" autocomplete="on">
+      <label for="girisEposta">E-posta</label>
+      <input id="girisEposta" type="email" placeholder="ornek@mail.com" autocomplete="username" required />
+
+      <label for="girisSifre">Şifre</label>
+      <input id="girisSifre" type="password" placeholder="••••••••" autocomplete="current-password" required />
+
+      <button class="anaButon" id="girisButonu" type="submit">Giriş yap</button>
+    </form>
+
+    <div class="uyari hidden" id="girisHata"></div>
   </div>
 </div>
 
+<!-- ======================= PANEL ======================= -->
 <div id="panelEkrani" class="hidden">
   <div class="ustBar">
-    <h1>Yönetim Paneli</h1>
-    <button class="cikisButon" id="cikisButonu">Çıkış Yap</button>
+    <div class="markaIkon">💼</div>
+    <div>
+      <h1>Yönetim Paneli</h1>
+      <div class="kim" id="oturumBilgisi"></div>
+    </div>
+    <button class="cikisButon" id="cikisButonu">Çıkış yap</button>
   </div>
 
-  <div class="sekmeler">
-    <button class="sekmeButon aktif" data-sekme="geriBildirim">Geri Bildirimler</button>
-    <button class="sekmeButon" data-sekme="kullanicilar">Kayıtlı Kullanıcılar</button>
-    <button class="sekmeButon" data-sekme="silinenGeriBildirim">Silinen Geri Bildirimler</button>
-    <button class="sekmeButon" data-sekme="silinenKullanicilar">Silinen Kullanıcılar</button>
+  <div class="istatistikler">
+    <div class="istatistik"><div class="cap">Bekleyen</div><div class="val" id="statBekleyen">0</div></div>
+    <div class="istatistik"><div class="cap">Yanıtlanan</div><div class="val" id="statYanitlanan">0</div></div>
+    <div class="istatistik"><div class="cap">Kullanıcı</div><div class="val" id="statKullanici">0</div></div>
+    <div class="istatistik"><div class="cap">Bu hafta</div><div class="val" id="statHafta">0</div></div>
   </div>
 
-  <input id="aramaKutusu" type="text" placeholder="İsim, soyisim veya e-posta ile ara..." />
+  <div class="sekmeler" role="tablist">
+    <button class="sekmeButon aktif" data-sekme="geriBildirim" role="tab">Geri bildirimler<span class="sayi" id="sayiGeriBildirim">0</span></button>
+    <button class="sekmeButon" data-sekme="kullanicilar" role="tab">Kullanıcılar<span class="sayi" id="sayiKullanicilar">0</span></button>
+    <button class="sekmeButon" data-sekme="silinenGeriBildirim" role="tab">Silinen bildirimler<span class="sayi" id="sayiSilinenGeriBildirim">0</span></button>
+    <button class="sekmeButon" data-sekme="silinenKullanicilar" role="tab">Silinen kullanıcılar<span class="sayi" id="sayiSilinenKullanicilar">0</span></button>
+  </div>
+
+  <input id="aramaKutusu" type="search" placeholder="İsim, soyisim, e-posta veya mesaj içinde ara…" />
 
   <div id="geriBildirimListesi"></div>
   <div id="kullaniciListesi" class="hidden"></div>
@@ -189,278 +261,481 @@
   <div id="silinenKullaniciListesi" class="hidden"></div>
 </div>
 
+<!-- ======================= ONAY ======================= -->
+<div id="onayPerde" class="hidden">
+  <div class="onayKutu">
+    <h3 id="onayBaslik"></h3>
+    <p id="onayMetin"></p>
+    <div class="butonSatir">
+      <button class="cikisButon" id="onayVazgec" style="margin-left:0">Vazgeç</button>
+      <button class="kaliciSilButon" id="onayOnayla">Onayla</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-  import {
-    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
-  } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-  import {
-    getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, deleteField, serverTimestamp
-  } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js';
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js';
+import {
+  getFirestore, collection, query, orderBy, onSnapshot,
+  doc, updateDoc, deleteDoc, deleteField, serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js';
 
-  const firebaseConfig = {
-    apiKey: "KALDIRILDI_FIREBASE_API_KEY",
-    authDomain: "maas-primtakip.firebaseapp.com",
-    projectId: "maas-primtakip",
-    storageBucket: "maas-primtakip.firebasestorage.app",
-    messagingSenderId: "589781739238",
-    appId: "1:589781739238:web:0512b7d1b174550ae87d27",
-    measurementId: "G-40MYEFZ2HC"
-  };
+/* ------------------------------------------------------------------ *
+ * Yapılandırma
+ *
+ * Firebase ve EmailJS değerleri `config.js` dosyasından okunur; bu dosya
+ * sürüm kontrolüne dahil değildir. Şablon için `config.example.js`.
+ *
+ * Firebase istemci yapılandırması gizli değildir — verinin korunması
+ * `firestore.rules` ile sağlanır. Panel, kural dosyasında yazılı yönetici
+ * e-postası dışında bir hesapla giriş yapıldığında hiçbir veri gösteremez.
+ * ------------------------------------------------------------------ */
+import { firebaseConfig, EMAILJS } from './config.js';
 
-  const EMAILJS_SERVICE_ID = 'KALDIRILDI_EMAILJS_SERVICE_ID';
-  const EMAILJS_TEMPLATE_ID = 'KALDIRILDI_EMAILJS_TEMPLATE_ID';
-  const EMAILJS_PUBLIC_KEY = 'KALDIRILDI_EMAILJS_PUBLIC_KEY';
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+/* ------------------------------------------------------------------ *
+ * Yardımcılar
+ * ------------------------------------------------------------------ */
+const $ = (id) => document.getElementById(id);
 
-  const girisEkrani = document.getElementById('girisEkrani');
-  const panelEkrani = document.getElementById('panelEkrani');
-  const girisButonu = document.getElementById('girisButonu');
-  const girisHata = document.getElementById('girisHata');
-  const cikisButonu = document.getElementById('cikisButonu');
-  const sekmeButonlari = document.querySelectorAll('.sekmeButon');
-  const listeKutulari = {
-    geriBildirim: document.getElementById('geriBildirimListesi'),
-    kullanicilar: document.getElementById('kullaniciListesi'),
-    silinenGeriBildirim: document.getElementById('silinenGeriBildirimListesi'),
-    silinenKullanicilar: document.getElementById('silinenKullaniciListesi'),
-  };
-  const geriBildirimListesi = listeKutulari.geriBildirim;
-  const kullaniciListesi = listeKutulari.kullanicilar;
-  const silinenGeriBildirimListesi = listeKutulari.silinenGeriBildirim;
-  const silinenKullaniciListesi = listeKutulari.silinenKullanicilar;
+/**
+ * Kullanıcıdan gelen metni GÜVENLE yerleştirir.
+ *
+ * Önceki sürüm kartları `innerHTML` ile kuruyor ve `mesaj`, `isim`, `eposta`
+ * alanlarını kaçışlamadan gömüyordu; uygulamadan gönderilen bir mesaj
+ * yöneticinin tarayıcısında betik çalıştırabiliyordu (depolanmış XSS).
+ * Artık tüm kullanıcı verisi `textContent` üzerinden yazılıyor.
+ */
+const el = (etiket, sinif, metin) => {
+  const dugum = document.createElement(etiket);
+  if (sinif) dugum.className = sinif;
+  if (metin !== undefined && metin !== null) dugum.textContent = String(metin);
+  return dugum;
+};
 
-  girisButonu.addEventListener('click', async () => {
-    const eposta = document.getElementById('girisEposta').value.trim();
-    const sifre = document.getElementById('girisSifre').value;
-    girisHata.classList.add('hidden');
-    try {
-      await signInWithEmailAndPassword(auth, eposta, sifre);
-    } catch (e) {
-      girisHata.textContent = 'Giriş başarısız: e-posta veya şifre hatalı.';
-      girisHata.classList.remove('hidden');
-    }
+const tarihFormatla = (ts) => {
+  if (!ts?.toDate) return '—';
+  return ts.toDate().toLocaleString('tr-TR', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
+};
 
-  cikisButonu.addEventListener('click', () => signOut(auth));
+const tamIsim = (veri) =>
+  [veri.isim, veri.soyisim].filter(Boolean).join(' ').trim() || 'İsimsiz kullanıcı';
 
-  sekmeButonlari.forEach(buton => {
-    buton.addEventListener('click', () => {
-      sekmeButonlari.forEach(b => b.classList.remove('aktif'));
-      buton.classList.add('aktif');
-      Object.entries(listeKutulari).forEach(([anahtar, kutu]) => {
-        kutu.classList.toggle('hidden', anahtar !== buton.dataset.sekme);
-      });
+const basHarfler = (veri) => {
+  const ad = tamIsim(veri);
+  return ad === 'İsimsiz kullanıcı'
+    ? '?'
+    : ad.split(/\s+/).slice(0, 2).map((p) => p[0].toLocaleUpperCase('tr-TR')).join('');
+};
+
+/** Onay penceresi — `confirm()` yerine, sayfa akışını engellemeden. */
+function onayIste({ baslik, metin, onayEtiketi = 'Onayla' }) {
+  return new Promise((cozumle) => {
+    $('onayBaslik').textContent = baslik;
+    $('onayMetin').textContent = metin;
+    $('onayOnayla').textContent = onayEtiketi;
+    $('onayPerde').classList.remove('hidden');
+
+    const kapat = (sonuc) => {
+      $('onayPerde').classList.add('hidden');
+      $('onayOnayla').onclick = null;
+      $('onayVazgec').onclick = null;
+      cozumle(sonuc);
+    };
+    $('onayOnayla').onclick = () => kapat(true);
+    $('onayVazgec').onclick = () => kapat(false);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Giriş
+ * ------------------------------------------------------------------ */
+const GIRIS_HATALARI = {
+  'auth/invalid-email': 'E-posta adresi geçersiz.',
+  'auth/invalid-credential': 'E-posta veya şifre hatalı.',
+  'auth/wrong-password': 'E-posta veya şifre hatalı.',
+  'auth/user-not-found': 'Bu e-postayla kayıtlı hesap yok.',
+  'auth/too-many-requests': 'Çok fazla deneme yapıldı, biraz bekleyin.',
+  'auth/network-request-failed': 'İnternet bağlantısı kurulamadı.',
+};
+
+$('girisFormu').addEventListener('submit', async (olay) => {
+  olay.preventDefault();
+  const buton = $('girisButonu');
+  const hata = $('girisHata');
+  hata.classList.add('hidden');
+  buton.disabled = true;
+  buton.textContent = 'Giriş yapılıyor…';
+
+  try {
+    await signInWithEmailAndPassword(auth, $('girisEposta').value.trim(), $('girisSifre').value);
+  } catch (e) {
+    hata.textContent = GIRIS_HATALARI[e.code] ?? 'Giriş yapılamadı. Tekrar deneyin.';
+    hata.classList.remove('hidden');
+  } finally {
+    buton.disabled = false;
+    buton.textContent = 'Giriş yap';
+  }
+});
+
+$('cikisButonu').addEventListener('click', () => signOut(auth));
+
+/* ------------------------------------------------------------------ *
+ * Sekmeler
+ * ------------------------------------------------------------------ */
+const listeler = {
+  geriBildirim: $('geriBildirimListesi'),
+  kullanicilar: $('kullaniciListesi'),
+  silinenGeriBildirim: $('silinenGeriBildirimListesi'),
+  silinenKullanicilar: $('silinenKullaniciListesi'),
+};
+
+document.querySelectorAll('.sekmeButon').forEach((buton) => {
+  buton.addEventListener('click', () => {
+    document.querySelectorAll('.sekmeButon').forEach((b) => b.classList.remove('aktif'));
+    buton.classList.add('aktif');
+    Object.entries(listeler).forEach(([anahtar, kutu]) => {
+      kutu.classList.toggle('hidden', anahtar !== buton.dataset.sekme);
     });
   });
+});
 
-  function tarihFormatla(ts) {
-    if (!ts || !ts.toDate) return '';
-    return ts.toDate().toLocaleString('tr-TR');
-  }
-
-  async function silDurumunuGuncelle(koleksiyon, id, silinsinMi) {
-    await updateDoc(doc(db, koleksiyon, id), silinsinMi
+/* ------------------------------------------------------------------ *
+ * Kart oluşturucular — tamamı DOM API'siyle, innerHTML yok
+ * ------------------------------------------------------------------ */
+function silDurumu(koleksiyon, id, silinsinMi) {
+  return updateDoc(
+    doc(db, koleksiyon, id),
+    silinsinMi
       ? { silindi: true, silinmeTarihi: serverTimestamp() }
-      : { silindi: false, silinmeTarihi: deleteField() });
+      : { silindi: false, silinmeTarihi: deleteField() }
+  );
+}
+
+function kimlikBlogu(veri) {
+  const sarmal = el('div', 'kimlik');
+  sarmal.append(el('div', 'avatar', basHarfler(veri)));
+
+  const metinler = el('div');
+  metinler.append(el('div', 'kartIsim', tamIsim(veri)));
+  metinler.append(el('div', 'kartEposta', veri.eposta || 'e-posta kayıtlı değil'));
+  sarmal.append(metinler);
+  return sarmal;
+}
+
+function geriBildirimKarti(id, veri, silinmis) {
+  const kart = el('div', 'kart');
+  const yanitlandi = veri.durum === 'Yanıtlandı';
+
+  const ust = el('div', 'kartUst');
+  ust.append(kimlikBlogu(veri));
+  ust.append(
+    el(
+      'span',
+      silinmis ? 'rozet silindi' : `rozet ${yanitlandi ? 'yanitlandi' : 'yeni'}`,
+      silinmis ? 'Silindi' : yanitlandi ? 'Yanıtlandı' : 'Yeni'
+    )
+  );
+  kart.append(ust);
+
+  kart.append(el('div', 'mesajMetni', veri.mesaj || ''));
+  kart.append(
+    el('div', 'tarihMetni', `${tarihFormatla(veri.tarih)} · ${veri.platform || 'bilinmiyor'}`)
+  );
+
+  if (yanitlandi && veri.yanit) {
+    const yanit = el('div', 'verilenYanit');
+    yanit.append(el('span', 'basligi', `Yanıtınız · ${tarihFormatla(veri.yanitTarihi)}`));
+    yanit.append(document.createTextNode(veri.yanit));
+    kart.append(yanit);
   }
 
-  async function kaliciSil(koleksiyon, id, aciklama) {
-    if (!confirm(`${aciklama}\n\nBu işlem GERİ ALINAMAZ, kayıt tamamen silinecek. Emin misin?`)) return;
-    await deleteDoc(doc(db, koleksiyon, id));
+  if (!silinmis && !yanitlandi) {
+    const alan = el('div', 'yanitAlani');
+    const kutu = el('textarea');
+    kutu.placeholder = 'Yanıtınızı yazın — kullanıcının e-postasına gönderilir…';
+    alan.append(kutu);
+
+    const gonder = el('button', 'yanitButon', 'Yanıtla ve e-posta gönder');
+    gonder.style.marginTop = '10px';
+
+    const durumSatiri = el('div', 'uyari bilgi hidden');
+    alan.append(gonder, durumSatiri);
+
+    gonder.addEventListener('click', async () => {
+      const metin = kutu.value.trim();
+      if (!metin) {
+        durumSatiri.className = 'uyari';
+        durumSatiri.textContent = 'Önce bir yanıt yazın.';
+        return;
+      }
+      if (!veri.eposta) {
+        durumSatiri.className = 'uyari';
+        durumSatiri.textContent = 'Bu kullanıcının e-postası kayıtlı değil, gönderim yapılamaz.';
+        return;
+      }
+
+      gonder.disabled = true;
+      gonder.textContent = 'Gönderiliyor…';
+      durumSatiri.classList.add('hidden');
+
+      try {
+        const yanit = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service_id: EMAILJS.serviceId,
+            template_id: EMAILJS.templateId,
+            user_id: EMAILJS.publicKey,
+            template_params: {
+              to_email: veri.eposta,
+              isim: veri.isim || '',
+              soyisim: veri.soyisim || '',
+              mesaj: veri.mesaj || '',
+              icerik: metin,
+            },
+          }),
+        });
+
+        // Firestore'a YALNIZCA e-posta gerçekten gittiyse yaz.
+        // Önceki sürüm önce durumu güncelliyor, e-posta başarısız olsa bile
+        // kayıt "Yanıtlandı" görünüyordu.
+        if (!yanit.ok) throw new Error(`E-posta servisi ${yanit.status} döndü`);
+
+        await updateDoc(doc(db, 'geribildirimler', id), {
+          durum: 'Yanıtlandı',
+          yanit: metin,
+          yanitTarihi: serverTimestamp(),
+        });
+      } catch (e) {
+        durumSatiri.className = 'uyari';
+        durumSatiri.textContent = `Gönderilemedi: ${e.message}`;
+        durumSatiri.classList.remove('hidden');
+        gonder.disabled = false;
+        gonder.textContent = 'Yanıtla ve e-posta gönder';
+      }
+    });
+
+    kart.append(alan);
   }
 
-  function feedbackKartOlustur(id, veri, silinmisMi) {
-    const kart = document.createElement('div');
-    kart.className = 'kart';
+  const butonlar = el('div', 'butonSatir');
 
-    const isimSatiri = [veri.isim, veri.soyisim].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı';
-    const yanitlandiMi = veri.durum === 'Yanıtlandı';
-
-    kart.innerHTML = `
-      <div class="kartUst">
-        <div>
-          <div class="kartIsim">${isimSatiri}</div>
-          <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
-        </div>
-        <span class="${silinmisMi ? 'silinmisRozet' : `rozet ${yanitlandiMi ? 'yanitlandi' : 'yeni'}`}">${silinmisMi ? 'Silindi' : (yanitlandiMi ? 'Yanıtlandı' : 'Yeni')}</span>
-      </div>
-      <div class="mesajMetni">${veri.mesaj || ''}</div>
-      <div class="tarihMetni">${tarihFormatla(veri.tarih)} · ${veri.platform || ''}</div>
-      ${(!silinmisMi && yanitlandiMi) ? `<div class="verilenYanit"><b>Yanıtınız:</b> ${veri.yanit || ''}</div>` : ''}
-      ${(!silinmisMi && !yanitlandiMi) ? `
-        <div class="yanitAlani">
-          <textarea placeholder="Yanıtınızı yazın..."></textarea>
-          <br />
-          <button class="yanitButon">Yanıtla ve E-posta Gönder</button>
-        </div>
-      ` : ''}
-      <div class="kartAltSatir">
-        ${silinmisMi ? '<button class="kaliciSilButon">Tamamen Sil</button>' : ''}
-        <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
-      </div>
-    `;
-
-    if (!silinmisMi && !yanitlandiMi) {
-      const textarea = kart.querySelector('textarea');
-      const buton = kart.querySelector('.yanitButon');
-      buton.addEventListener('click', async () => {
-        const yanitMetni = textarea.value.trim();
-        if (!yanitMetni) { alert('Lütfen bir yanıt yazın.'); return; }
-        if (!veri.eposta) { alert('Bu kullanıcının e-posta adresi kayıtlı değil, e-posta gönderilemez.'); return; }
-
-        buton.disabled = true;
-        buton.textContent = 'Gönderiliyor...';
-        try {
-          await updateDoc(doc(db, 'geribildirimler', id), {
-            durum: 'Yanıtlandı',
-            yanit: yanitMetni,
-            yanitTarihi: serverTimestamp(),
-          });
-
-          await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              service_id: EMAILJS_SERVICE_ID,
-              template_id: EMAILJS_TEMPLATE_ID,
-              user_id: EMAILJS_PUBLIC_KEY,
-              template_params: {
-                to_email: veri.eposta,
-                isim: veri.isim || '',
-                soyisim: veri.soyisim || '',
-                mesaj: veri.mesaj || '',
-                icerik: yanitMetni,
-              },
-            }),
-          });
-        } catch (e) {
-          alert('Bir hata oluştu: ' + e.message);
-          buton.disabled = false;
-          buton.textContent = 'Yanıtla ve E-posta Gönder';
-        }
+  if (silinmis) {
+    const kalici = el('button', 'kaliciSilButon', 'Tamamen sil');
+    kalici.addEventListener('click', async () => {
+      const onay = await onayIste({
+        baslik: 'Kalıcı olarak silinsin mi?',
+        metin: `${tamIsim(veri)} adlı kişinin geri bildirimi tamamen silinecek. Bu işlem geri alınamaz.`,
+        onayEtiketi: 'Kalıcı olarak sil',
       });
-    }
-
-    kart.querySelector(silinmisMi ? '.geriYukleButon' : '.silButon').addEventListener('click', async () => {
-      if (!silinmisMi && !confirm('Bu geri bildirimi silinenler alanına taşımak istiyor musun?')) return;
-      await silDurumunuGuncelle('geribildirimler', id, !silinmisMi);
+      if (onay) await deleteDoc(doc(db, 'geribildirimler', id));
     });
+    butonlar.append(kalici);
 
-    if (silinmisMi) {
-      kart.querySelector('.kaliciSilButon').addEventListener('click', () => {
-        kaliciSil('geribildirimler', id, `"${isimSatiri}" adlı kişinin geri bildirimini kalıcı olarak silmek üzeresin.`);
+    const geri = el('button', 'geriYukleButon', 'Geri yükle');
+    geri.addEventListener('click', () => silDurumu('geribildirimler', id, false));
+    butonlar.append(geri);
+  } else {
+    const sil = el('button', 'silButon', 'Sil');
+    sil.addEventListener('click', async () => {
+      const onay = await onayIste({
+        baslik: 'Silinenlere taşınsın mı?',
+        metin: 'Geri bildirim listeden kaldırılır ama silinenler sekmesinden geri yüklenebilir.',
+        onayEtiketi: 'Sil',
       });
-    }
-
-    return kart;
+      if (onay) await silDurumu('geribildirimler', id, true);
+    });
+    butonlar.append(sil);
   }
 
-  function kullaniciKartOlustur(id, veri, silinmisMi) {
-    const kart = document.createElement('div');
-    kart.className = 'kart';
-    const isimSatiri = [veri.isim, veri.soyisim].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı';
-    kart.innerHTML = `
-      <div class="kartUst">
-        <div>
-          <div class="kartIsim">${isimSatiri}</div>
-          <div class="kartEposta">${veri.eposta || 'e-posta yok'}</div>
-        </div>
-        ${silinmisMi ? '<span class="silinmisRozet">Silindi</span>' : ''}
-      </div>
-      <div class="tarihMetni">Kayıt: ${tarihFormatla(veri.kayitTarihi)} · ${veri.platform || ''}</div>
-      <div class="kartAltSatir">
-        ${silinmisMi ? '<button class="kaliciSilButon">Tamamen Sil</button>' : ''}
-        <button class="${silinmisMi ? 'geriYukleButon' : 'silButon'}">${silinmisMi ? 'Geri Yükle' : 'Sil'}</button>
-      </div>
-    `;
+  kart.append(butonlar);
+  return kart;
+}
 
-    kart.querySelector(silinmisMi ? '.geriYukleButon' : '.silButon').addEventListener('click', async () => {
-      if (!silinmisMi && !confirm(`"${isimSatiri}" kullanıcısını silinenler alanına taşımak istiyor musun?`)) return;
-      await silDurumunuGuncelle('kullanicilar', id, !silinmisMi);
-    });
+function kullaniciKarti(id, veri, silinmis) {
+  const kart = el('div', 'kart');
 
-    if (silinmisMi) {
-      kart.querySelector('.kaliciSilButon').addEventListener('click', () => {
-        kaliciSil('kullanicilar', id, `"${isimSatiri}" kullanıcısını kalıcı olarak silmek üzeresin.`);
+  const ust = el('div', 'kartUst');
+  ust.append(kimlikBlogu(veri));
+  if (silinmis) ust.append(el('span', 'rozet silindi', 'Silindi'));
+  kart.append(ust);
+
+  kart.append(
+    el(
+      'div',
+      'tarihMetni',
+      `Kayıt: ${tarihFormatla(veri.kayitTarihi)} · Son güncelleme: ${tarihFormatla(veri.guncellenmeTarihi)} · ${veri.platform || 'bilinmiyor'}`
+    )
+  );
+
+  const butonlar = el('div', 'butonSatir');
+
+  if (silinmis) {
+    const kalici = el('button', 'kaliciSilButon', 'Tamamen sil');
+    kalici.addEventListener('click', async () => {
+      const onay = await onayIste({
+        baslik: 'Kullanıcı kalıcı olarak silinsin mi?',
+        metin: `${tamIsim(veri)} kaydı tamamen silinecek. Kullanıcının bulut yedeği bu işlemden etkilenmez.`,
+        onayEtiketi: 'Kalıcı olarak sil',
       });
-    }
-
-    return kart;
-  }
-
-  let geriBildirimAboneligi = null;
-  let kullaniciAboneligi = null;
-  let sonGeriBildirimler = [];
-  let sonKullanicilar = [];
-  const aramaKutusu = document.getElementById('aramaKutusu');
-
-  function eslesiyorMu(veri, terim) {
-    if (!terim) return true;
-    const hedef = `${veri.isim || ''} ${veri.soyisim || ''} ${veri.eposta || ''}`.toLocaleLowerCase('tr-TR');
-    return hedef.includes(terim.toLocaleLowerCase('tr-TR'));
-  }
-
-  function listeleriYenidenCiz() {
-    const terim = aramaKutusu.value.trim();
-
-    geriBildirimListesi.innerHTML = '';
-    silinenGeriBildirimListesi.innerHTML = '';
-    const gbAktif = sonGeriBildirimler.filter(x => x.veri.silindi !== true && eslesiyorMu(x.veri, terim));
-    const gbSilinen = sonGeriBildirimler.filter(x => x.veri.silindi === true && eslesiyorMu(x.veri, terim));
-    gbAktif.forEach(x => geriBildirimListesi.appendChild(feedbackKartOlustur(x.id, x.veri, false)));
-    gbSilinen.forEach(x => silinenGeriBildirimListesi.appendChild(feedbackKartOlustur(x.id, x.veri, true)));
-    if (gbAktif.length === 0) geriBildirimListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen geri bildirim yok.' : 'Henüz geri bildirim yok.'}</div>`;
-    if (gbSilinen.length === 0) silinenGeriBildirimListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen silinen geri bildirim yok.' : 'Silinen geri bildirim yok.'}</div>`;
-
-    kullaniciListesi.innerHTML = '';
-    silinenKullaniciListesi.innerHTML = '';
-    const kAktif = sonKullanicilar.filter(x => x.veri.silindi !== true && eslesiyorMu(x.veri, terim));
-    const kSilinen = sonKullanicilar.filter(x => x.veri.silindi === true && eslesiyorMu(x.veri, terim));
-    kAktif.forEach(x => kullaniciListesi.appendChild(kullaniciKartOlustur(x.id, x.veri, false)));
-    kSilinen.forEach(x => silinenKullaniciListesi.appendChild(kullaniciKartOlustur(x.id, x.veri, true)));
-    if (kAktif.length === 0) kullaniciListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen kullanıcı yok.' : 'Henüz kayıtlı kullanıcı yok.'}</div>`;
-    if (kSilinen.length === 0) silinenKullaniciListesi.innerHTML = `<div class="bosDurum">${terim ? 'Eşleşen silinen kullanıcı yok.' : 'Silinen kullanıcı yok.'}</div>`;
-  }
-
-  aramaKutusu.addEventListener('input', listeleriYenidenCiz);
-
-  function verileriDinlemeyeBasla() {
-    const gbSorgu = query(collection(db, 'geribildirimler'), orderBy('tarih', 'desc'));
-    geriBildirimAboneligi = onSnapshot(gbSorgu, (snap) => {
-      sonGeriBildirimler = snap.docs.map(d => ({ id: d.id, veri: d.data() }));
-      listeleriYenidenCiz();
+      if (onay) await deleteDoc(doc(db, 'kullanicilar', id));
     });
+    butonlar.append(kalici);
 
-    const kSorgu = query(collection(db, 'kullanicilar'), orderBy('kayitTarihi', 'desc'));
-    kullaniciAboneligi = onSnapshot(kSorgu, (snap) => {
-      sonKullanicilar = snap.docs.map(d => ({ id: d.id, veri: d.data() }));
-      listeleriYenidenCiz();
+    const geri = el('button', 'geriYukleButon', 'Geri yükle');
+    geri.addEventListener('click', () => silDurumu('kullanicilar', id, false));
+    butonlar.append(geri);
+  } else {
+    const sil = el('button', 'silButon', 'Sil');
+    sil.addEventListener('click', async () => {
+      const onay = await onayIste({
+        baslik: 'Silinenlere taşınsın mı?',
+        metin: `${tamIsim(veri)} listeden kaldırılır ama geri yüklenebilir.`,
+        onayEtiketi: 'Sil',
+      });
+      if (onay) await silDurumu('kullanicilar', id, true);
     });
+    butonlar.append(sil);
   }
 
-  function dinlemeyiDurdur() {
-    if (geriBildirimAboneligi) geriBildirimAboneligi();
-    if (kullaniciAboneligi) kullaniciAboneligi();
-    sonGeriBildirimler = [];
-    sonKullanicilar = [];
-    aramaKutusu.value = '';
-  }
+  kart.append(butonlar);
+  return kart;
+}
 
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      girisEkrani.classList.add('hidden');
-      panelEkrani.classList.remove('hidden');
-      verileriDinlemeyeBasla();
-    } else {
-      panelEkrani.classList.add('hidden');
-      girisEkrani.classList.remove('hidden');
-      dinlemeyiDurdur();
-    }
+/* ------------------------------------------------------------------ *
+ * Listeleme
+ * ------------------------------------------------------------------ */
+let geriBildirimAbonelik = null;
+let kullaniciAbonelik = null;
+let geriBildirimler = [];
+let kullanicilar = [];
+
+const arama = $('aramaKutusu');
+
+function eslesiyorMu(veri, terim) {
+  if (!terim) return true;
+  const hedef = `${veri.isim ?? ''} ${veri.soyisim ?? ''} ${veri.eposta ?? ''} ${veri.mesaj ?? ''}`
+    .toLocaleLowerCase('tr-TR');
+  return hedef.includes(terim.toLocaleLowerCase('tr-TR'));
+}
+
+function bosDurum(baslik, aciklama) {
+  const kutu = el('div', 'bosDurum');
+  kutu.append(el('strong', null, baslik));
+  kutu.append(document.createTextNode(aciklama));
+  return kutu;
+}
+
+function ciz(kutu, kayitlar, kartYapici, silinmis, bosBaslik, bosAciklama) {
+  kutu.replaceChildren();
+  if (kayitlar.length === 0) {
+    kutu.append(bosDurum(bosBaslik, bosAciklama));
+    return;
+  }
+  const parca = document.createDocumentFragment();
+  kayitlar.forEach(({ id, veri }) => parca.append(kartYapici(id, veri, silinmis)));
+  kutu.append(parca);
+}
+
+function istatistikleriGuncelle() {
+  const aktifGB = geriBildirimler.filter((x) => x.veri.silindi !== true);
+  const haftaOnce = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  $('statBekleyen').textContent = aktifGB.filter((x) => x.veri.durum !== 'Yanıtlandı').length;
+  $('statYanitlanan').textContent = aktifGB.filter((x) => x.veri.durum === 'Yanıtlandı').length;
+  $('statKullanici').textContent = kullanicilar.filter((x) => x.veri.silindi !== true).length;
+  $('statHafta').textContent = aktifGB.filter(
+    (x) => x.veri.tarih?.toDate && x.veri.tarih.toDate().getTime() > haftaOnce
+  ).length;
+}
+
+function yenidenCiz() {
+  const terim = arama.value.trim();
+
+  const bol = (kaynak) => ({
+    aktif: kaynak.filter((x) => x.veri.silindi !== true && eslesiyorMu(x.veri, terim)),
+    silinen: kaynak.filter((x) => x.veri.silindi === true && eslesiyorMu(x.veri, terim)),
   });
+
+  const gb = bol(geriBildirimler);
+  const kl = bol(kullanicilar);
+
+  ciz(listeler.geriBildirim, gb.aktif, geriBildirimKarti, false,
+    terim ? 'Eşleşme yok' : 'Henüz geri bildirim yok',
+    terim ? 'Farklı bir arama terimi deneyin.' : 'Kullanıcılar uygulamadan mesaj gönderdiğinde burada görünür.');
+
+  ciz(listeler.silinenGeriBildirim, gb.silinen, geriBildirimKarti, true,
+    'Silinen bildirim yok', 'Sildiğiniz geri bildirimler burada saklanır.');
+
+  ciz(listeler.kullanicilar, kl.aktif, kullaniciKarti, false,
+    terim ? 'Eşleşme yok' : 'Kayıtlı kullanıcı yok',
+    terim ? 'Farklı bir arama terimi deneyin.' : 'Bulut yedeği açan kullanıcılar burada listelenir.');
+
+  ciz(listeler.silinenKullanicilar, kl.silinen, kullaniciKarti, true,
+    'Silinen kullanıcı yok', 'Sildiğiniz kullanıcılar burada saklanır.');
+
+  $('sayiGeriBildirim').textContent = gb.aktif.length;
+  $('sayiSilinenGeriBildirim').textContent = gb.silinen.length;
+  $('sayiKullanicilar').textContent = kl.aktif.length;
+  $('sayiSilinenKullanicilar').textContent = kl.silinen.length;
+
+  istatistikleriGuncelle();
+}
+
+arama.addEventListener('input', yenidenCiz);
+
+function dinlemeyeBasla() {
+  geriBildirimAbonelik = onSnapshot(
+    query(collection(db, 'geribildirimler'), orderBy('tarih', 'desc')),
+    (anlik) => {
+      geriBildirimler = anlik.docs.map((d) => ({ id: d.id, veri: d.data() }));
+      yenidenCiz();
+    },
+    (hata) => console.error('Geri bildirimler okunamadı:', hata)
+  );
+
+  kullaniciAbonelik = onSnapshot(
+    query(collection(db, 'kullanicilar'), orderBy('kayitTarihi', 'desc')),
+    (anlik) => {
+      kullanicilar = anlik.docs.map((d) => ({ id: d.id, veri: d.data() }));
+      yenidenCiz();
+    },
+    (hata) => console.error('Kullanıcılar okunamadı:', hata)
+  );
+}
+
+function dinlemeyiDurdur() {
+  geriBildirimAbonelik?.();
+  kullaniciAbonelik?.();
+  geriBildirimAbonelik = null;
+  kullaniciAbonelik = null;
+  geriBildirimler = [];
+  kullanicilar = [];
+  arama.value = '';
+}
+
+onAuthStateChanged(auth, (kullanici) => {
+  if (kullanici) {
+    $('girisEkrani').classList.add('hidden');
+    $('panelEkrani').classList.remove('hidden');
+    $('oturumBilgisi').textContent = kullanici.email ?? '';
+    dinlemeyeBasla();
+  } else {
+    $('panelEkrani').classList.add('hidden');
+    $('girisEkrani').classList.remove('hidden');
+    $('girisSifre').value = '';
+    dinlemeyiDurdur();
+  }
+});
 </script>
 
 </body>

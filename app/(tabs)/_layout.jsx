@@ -1,140 +1,131 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Tabs, useRouter } from 'expo-router';
-import { createContext, useEffect, useState } from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const ThemeContext = createContext();
+import { IconButton, Text } from '../../components/ui';
+import { profilOku } from '../../lib/storage';
+import { useTheme } from '../../theme';
+import { TAB_ACCENTS } from '../../theme/tokens';
 
-export const TAB_RENKLERI = {
-  maas: '#4F46E5',
-  harcamalar: '#DC2626',
-  hizli: '#16A34A',
-  gecmis: '#F59E0B',
-};
+const SEKMELER = [
+  { name: 'index', title: 'Maaş', icon: 'wallet' },
+  { name: 'expenses', title: 'Harcamalar', icon: 'cart' },
+  { name: 'explore', title: 'Hızlı', icon: 'flash' },
+  { name: 'history', title: 'Geçmiş', icon: 'time' },
+];
 
 export default function TabLayout() {
-  const systemTheme = useColorScheme() === 'dark';
-  const [isDark, setIsDark] = useState(systemTheme);
+  const { color, isDark, accent, type, temaDegistir } = useTheme();
   const [profilKontrolEdildi, setProfilKontrolEdildi] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    AsyncStorage.getItem('seciliTema').then(savedTheme => {
-      if (savedTheme !== null) {
-        setIsDark(savedTheme === 'dark');
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem('kullaniciProfili').then(profil => {
-      if (!profil) {
+    let iptal = false;
+    profilOku().then((profil) => {
+      if (iptal) return;
+      if (!profil?.eposta) {
         router.replace('/kayit');
       } else {
         setProfilKontrolEdildi(true);
       }
     });
-  }, []);
+    return () => {
+      iptal = true;
+    };
+  }, [router]);
 
   if (!profilKontrolEdildi) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? '#121212' : '#f2f4f8' }}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: color.bg }}>
+        <ActivityIndicator size="large" color={color.textMuted} />
       </View>
     );
   }
 
-  const toggleTheme = async () => {
-    const yeniTema = !isDark;
-    setIsDark(yeniTema);
-    await AsyncStorage.setItem('seciliTema', yeniTema ? 'dark' : 'light');
-  };
-
-  const TemaButonu = () => (
-    <TouchableOpacity onPress={toggleTheme} style={{ marginRight: 15, padding: 5 }}>
-      <Text style={{ fontSize: 22 }}>{isDark ? '☀️' : '🌙'}</Text>
-    </TouchableOpacity>
-  );
-
-  const FeedbackButonu = () => (
-    <TouchableOpacity onPress={() => router.push('/feedback')} style={{ marginLeft: 15, padding: 5 }}>
-      <Text style={{ fontSize: 22 }}>💬</Text>
-    </TouchableOpacity>
-  );
-
-  const ProfilButonu = () => (
-    <TouchableOpacity onPress={() => router.push('/profil')} style={{ marginRight: 15, padding: 5 }}>
-      <Ionicons name="person-circle-outline" size={24} color={isDark ? '#ffffff' : '#000000'} />
-    </TouchableOpacity>
-  );
-
   return (
-    <ThemeContext.Provider value={{ isDark }}>
-      <Tabs screenOptions={{
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: color.bg,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: color.border,
+        },
+        headerTintColor: color.text,
+        headerTitleStyle: { ...type.subheading, color: color.text },
+        headerLeftContainerStyle: { paddingLeft: 10 },
+        headerRightContainerStyle: { paddingRight: 10 },
+        headerLeft: () => (
+          <IconButton
+            icon="chatbubble-ellipses-outline"
+            accessibilityLabel="Geri bildirim gönder"
+            onPress={() => router.push('/feedback')}
+          />
+        ),
         headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ProfilButonu />
-            <TemaButonu />
+            <IconButton
+              icon={isDark ? 'sunny-outline' : 'moon-outline'}
+              accessibilityLabel={isDark ? 'Açık temaya geç' : 'Koyu temaya geç'}
+              onPress={temaDegistir}
+            />
+            <IconButton
+              icon="person-circle-outline"
+              accessibilityLabel="Profil"
+              size={24}
+              onPress={() => router.push('/profil')}
+            />
           </View>
         ),
-        headerLeft: () => <FeedbackButonu />,
-        headerStyle: { backgroundColor: isDark ? '#121212' : '#ffffff' },
-        headerTintColor: isDark ? '#ffffff' : '#000000',
-        headerTitleStyle: { fontWeight: '800' },
-        tabBarInactiveTintColor: isDark ? '#6b7280' : '#9ca3af',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarInactiveTintColor: color.textFaint,
+        tabBarShowLabel: false,
+        tabBarItemStyle: { paddingTop: 8, paddingBottom: 4 },
         tabBarStyle: {
-          backgroundColor: isDark ? '#121212' : '#ffffff',
-          borderTopColor: isDark ? '#333333' : '#eeeeee',
-          height: 54 + insets.bottom,
-          paddingBottom: Math.max(insets.bottom, 8),
-          paddingTop: 6,
-        }
-      }}>
+          backgroundColor: color.surface,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: color.border,
+          paddingBottom: insets.bottom,
+          height: 60 + insets.bottom,
+          ...(Platform.OS === 'ios' ? {} : { elevation: 0 }),
+        },
+      }}
+    >
+      {SEKMELER.map((sekme) => (
         <Tabs.Screen
-          name="index"
+          key={sekme.name}
+          name={sekme.name}
           options={{
-            title: 'Maaş',
-            tabBarActiveTintColor: TAB_RENKLERI.maas,
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={size + 2} color={color} />
+            title: sekme.title,
+            tabBarActiveTintColor: accent[TAB_ACCENTS[sekme.name]].base,
+            // İkon ve etiket tek bir görünümde çiziliyor.
+            //
+            // react-navigation'ın kendi etiket kutusu, yazı tipi boyutuyla aynı
+            // yükseklikte ve `overflow: hidden` olduğu için Türkçe ş/ç çengellerini
+            // kesiyordu ("Maaş" → "Maas", "Geçmiş" → "Gecmis"). Etiketi kendi
+            // düzenimizde çizip varsayılanı kapatarak sorun tümüyle ortadan kalkıyor.
+            tabBarIcon: ({ focused, color: renk }) => (
+              <View style={{ alignItems: 'center', justifyContent: 'center', width: 76 }}>
+                <Ionicons
+                  name={focused ? sekme.icon : `${sekme.icon}-outline`}
+                  size={23}
+                  color={renk}
+                />
+                <Text
+                  numberOfLines={1}
+                  color={renk}
+                  style={{ fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 3 }}
+                >
+                  {sekme.title}
+                </Text>
+              </View>
             ),
           }}
         />
-        <Tabs.Screen
-          name="expenses"
-          options={{
-            title: 'Harcamalar',
-            tabBarActiveTintColor: TAB_RENKLERI.harcamalar,
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size + 2} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="explore"
-          options={{
-            title: 'Hızlı',
-            tabBarActiveTintColor: TAB_RENKLERI.hizli,
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons name={focused ? 'flash' : 'flash-outline'} size={size + 2} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: 'Geçmiş',
-            tabBarActiveTintColor: TAB_RENKLERI.gecmis,
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons name={focused ? 'time' : 'time-outline'} size={size + 2} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
-    </ThemeContext.Provider>
+      ))}
+    </Tabs>
   );
 }

@@ -5,6 +5,13 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    ignores: ['dist/*', 'docs/*', '.venv/*', 'android/*', 'ios/*', 'admin-panel/*', '**/*.d.ts'],
+  },
+  {
+    rules: {
+      // Yakalanan ama kullanılmayan hatalar bilinçli: kullanıcı akışını
+      // bozmamak için sessizce yutulan yan etkiler var.
+      'no-unused-vars': ['warn', { caughtErrors: 'none', argsIgnorePattern: '^_' }],
+    },
   },
 ]);

@@ -34,7 +34,18 @@ yarn-error.*
 .firebase/
 
 # local env files
+.env
 .env*.local
+!.env.example
+
+# yönetim paneli yerel yapılandırması
+admin-panel/config.js
+
+# python sanal ortamı (yerel araçlar)
+.venv/
+
+# üretilen dokümantasyon ekran görüntüleri dışındaki geçici çıktılar
+*.log
 
 # typescript
 *.tsbuildinfo
